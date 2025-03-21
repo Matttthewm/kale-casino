@@ -10,20 +10,20 @@ HORIZON_SERVER = "https://horizon.stellar.org"
 server = Server(HORIZON_SERVER)
 NETWORK_PASSPHRASE = Network.PUBLIC_NETWORK_PASSPHRASE
 
-# Bank's public key
-BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"
+# Bank's public key (can be set via environment variable)
+BANK_PUBLIC_KEY = os.getenv("GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7")
 
-# KALE token configuration
-KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"
+# KALE token configuration (from environment variable)
+KALE_ISSUER = os.getenv("GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE")
 KALE_ASSET_CODE = "KALE"
 kale_asset = Asset(KALE_ASSET_CODE, KALE_ISSUER)
 
-# Shared secret for signing game outcomes (in practice, keep this in bank.py and use an API)
-SIGNING_SECRET = "SUPER_SECRET_KEY_12345"  # Replace with a secure key, kept only in bank.py
+# Shared secret for signing game outcomes (use environment variable for security)
+SIGNING_SECRET = os.getenv("SIGNING_SECRET", "DEFAULT_SECRET_KEY")
 
 player_balance = 0
 
-# ANSI color codes
+# ANSI color codes for better visuals in terminal
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
 CYAN = "\033[96m"
