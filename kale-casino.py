@@ -115,7 +115,7 @@ def add_winnings(player_keypair, expected_amount, game_id, cost, timeout=60):
         "game_type": "Scratch"  # Adjust for other games if implemented
     }
     try:
-        response = requests.post(f"{BANK_API_URL}/payout", json=payload, timeout=10)
+        response = requests.post(f"{BANK_API_URL}/payments", json=payload, timeout=10)  # Updated to /payments endpoint
         if response.status_code == 200:
             print(f"{GREEN}✓ Payout requested successfully!{RESET}")
         else:
