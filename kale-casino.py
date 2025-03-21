@@ -4,17 +4,21 @@ import os
 import hmac
 import hashlib
 from stellar_sdk import Server, Keypair, TransactionBuilder, Network, Asset
+from dotenv import load_dotenv  # Importing the dotenv package
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Stellar configuration
 HORIZON_SERVER = "https://horizon.stellar.org"
 server = Server(HORIZON_SERVER)
 NETWORK_PASSPHRASE = Network.PUBLIC_NETWORK_PASSPHRASE
 
-# Bank's public key (can be set via environment variable)
-BANK_PUBLIC_KEY = os.getenv("GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7")
+# Bank's public key (loaded from environment variable)
+BANK_PUBLIC_KEY = os.getenv("BANK_PUBLIC_KEY")
 
 # KALE token configuration (from environment variable)
-KALE_ISSUER = os.getenv("GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE")
+KALE_ISSUER = os.getenv("KALE_ISSUER")
 KALE_ASSET_CODE = "KALE"
 kale_asset = Asset(KALE_ASSET_CODE, KALE_ISSUER)
 
@@ -183,124 +187,11 @@ def scratch_card(player_keypair, card_cost, num_seedlings):
     winnings = 10000 if farmer_count >= 3 else 1000 if farmer_count == 2 else 25 if farmer_count == 1 else 20 * kale_count
     if deduct_kale(player_keypair, card_cost, memo):
         if winnings > 0:
-            print(f"\n{YELLOW}🏆 {'JACKPOT! 3+ Farmers!' if farmer_count >= 3 else 'Two Farmers!' if farmer_count == 2 else 'One Farmer!' if farmer_count == 1 else f'Found {kale_count} Kale!'} Won {winnings} KALE!{RESET}")
-            add_winnings(player_keypair, winnings)
+            print(f"\n{YELLOW}🏆 {'JACKPOT! 3+ Farmers!' if farmer_count >= 3 else 'Two Farmers!' if farmer_count == 2 else 'You win!'}{RESET}")
         else:
-            print(f"\n{RED}✗ No luck this time.{RESET}")
-    return winnings
-
-def print_slots(slots, rows):
-    output = [f"{CYAN}=== Kale Slots ==={RESET}"]
-    for row in range(rows):
-        output.append(f"  {' | '.join(slots[row * 3:row * 3 + 3])}")
-    output.append(f"{CYAN}================{RESET}")
-    return "\n".join(output)
-
-def play_slots(player_keypair):
-    global player_balance
-    symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"]
-    bets = {1: (10, 3, 1), 2: (100, 6, 2), 3: (1000, 9, 3)}
-    while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        fetch_kale_balance(player_keypair)
-        print(f"\n{YELLOW}💰 Balance: {player_balance} KALE 💰{RESET}")
-        print(f"{GREEN}🎰 Kale Casino Slots 🎰{RESET}")
-        for i, (cost, _, _) in bets.items():
-            print(f"  {CYAN}{i}.{RESET} {cost} KALE ({(i-1)*3+3} slots)")
-        print(f"  {CYAN}4.{RESET} Exit")
-        choice = input(f"{YELLOW}➤ Choose (1-4): {RESET}").strip()
-        if choice == "4": break
-        try:
-            choice = int(choice)
-            if choice not in bets: raise ValueError
-            cost, slots, rows = bets[choice]
-            if player_balance < cost:
-                print(f"{RED}✗ Need {cost} KALE, have {player_balance}!{RESET}")
-                time.sleep(1)
-                continue
-            game_id = str(random.randint(100000, 999999))
-            signature = generate_game_signature(game_id, cost)
-            memo = f"Slots {game_id} S:{signature}"
-            kale_prob = 0.02 if cost == 1000 else 0.05  # Keep 1000 KALE slots harder
-            final_slots = ["👩‍🌾" if random.random() < 0.0001 else "🥬" if random.random() < kale_prob else random.choice(symbols[:-2]) for _ in range(slots)]
-            farmer_count = final_slots.count("👩‍🌾")
-            kale_count = final_slots.count("🥬")
-            winnings = (500 * farmer_count + 20 * kale_count) * (cost // 10)
-            if deduct_kale(player_keypair, cost, memo):
-                print(f"{GREEN}✓ Spinning...{RESET}")
-                for _ in range(5):
-                    temp_slots = [random.choice(symbols) for _ in range(slots)]
-                    print("\033c" if os.name != 'nt' else "\033[2J\033[0;0H", end="")
-                    print(f"{print_slots(temp_slots, rows)}", flush=True)
-                    time.sleep(0.2)
-                print("\033c" if os.name != 'nt' else "\033[2J\033[0;0H", end="")
-                print(f"{print_slots(final_slots, rows)}", flush=True)
-                if winnings:
-                    print(f"{YELLOW}🏆 Won {winnings} KALE!{RESET}")
-                    add_winnings(player_keypair, winnings)
-                else:
-                    print(f"{RED}✗ No win.{RESET}")
-            input(f"{YELLOW}➤ Press Enter to continue...{RESET}")
-        except ValueError:
-            print(f"{RED}✗ Invalid choice!{RESET}")
-            time.sleep(1)
-
-def play_three_card_monte(player_keypair):
-    global player_balance
-    bets = {1: (10, 3, 1), 2: (100, 4, 2), 3: (1000, 5, 5)}
-    while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        fetch_kale_balance(player_keypair)
-        print(f"\n{YELLOW}💰 Balance: {player_balance} KALE 💰{RESET}")
-        print(f"{GREEN}🎴 Kale Monte 🎴{RESET}")
-        for i, (cost, cards, _) in bets.items():
-            print(f"  {CYAN}{i}.{RESET} {cost} KALE ({cards} spots)")
-        print(f"  {CYAN}4.{RESET} Exit")
-        choice = input(f"{YELLOW}➤ Choose (1-4): {RESET}").strip()
-        if choice == "4": break
-        try:
-            choice = int(choice)
-            if choice not in bets: raise ValueError
-            cost, num_cards, multiplier = bets[choice]
-            if player_balance < cost:
-                print(f"{RED}✗ Need {cost} KALE, have {player_balance}!{RESET}")
-                time.sleep(1)
-                continue
-            game_id = str(random.randint(100000, 999999))
-            signature = generate_game_signature(game_id, cost)
-            memo = f"Monte {game_id} S:{signature}"
-            cards = ["🥬"] + ["🌱"] * (num_cards - 1)
-            random.shuffle(cards)
-            print(f"\n{GREEN}✓ Watch the Kale...{RESET}")
-            print(f"    {'   |   '.join(str(i) for i in range(1, num_cards + 1))}")
-            print(f"  {' | '.join(cards)}")
-            time.sleep(2)
-            print(f"{YELLOW}🔀 Shuffling...{RESET}")
-            for _ in range(5):
-                random.shuffle(cards)
-                print("\033c" if os.name != 'nt' else "\033[2J\033[0;0H", end="")
-                print(f"  Shuffling...\n    {'   |   '.join(str(i) for i in range(1, num_cards + 1))} \n  {' | '.join(cards)}", flush=True)
-                time.sleep(0.1)
-            print("\033c" if os.name != 'nt' else "\033[2J\033[0;0H", end="")
-            print(f"\n{YELLOW}❓ Where’s the Kale?{RESET}")
-            print(f"    {'   |   '.join(str(i) for i in range(1, num_cards + 1))}")
-            print(f"    {'   |   '.join(['🌱'] * num_cards)}")
-            guess = int(input(f"{YELLOW}➤ Guess (1-{num_cards}): {RESET}"))
-            kale_pos = cards.index("🥬") + 1
-            print(f"\n{CYAN}✨ Reveal:{RESET}")
-            print(f"    {'   |   '.join(str(i) for i in range(1, num_cards + 1))}")
-            print(f"  {' | '.join(cards)}")
-            winnings = 10 * multiplier if guess == kale_pos else 0
-            if deduct_kale(player_keypair, cost, memo):
-                if winnings:
-                    print(f"{YELLOW}🏆 Found it! Won {winnings} KALE!{RESET}")
-                    add_winnings(player_keypair, winnings)
-                else:
-                    print(f"{RED}✗ Wrong spot!{RESET}")
-            time.sleep(2)
-        except ValueError:
-            print(f"{RED}✗ Invalid input!{RESET}")
-            time.sleep(1)
+            print(f"{RED}✗ No winning combination found.{RESET}")
+        return add_winnings(player_keypair, winnings)
+    return False
 
 def run_game():
     global player_balance
@@ -340,16 +231,6 @@ def run_game():
         except ValueError:
             print(f"{RED}✗ Invalid choice!{RESET}")
             time.sleep(1)
-
-def play_scratch_offs(player_keypair):
-    while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        fetch_kale_balance(player_keypair)
-        print(f"\n{YELLOW}💰 Balance: {player_balance} KALE 💰{RESET}")
-        result = buy_scratch_off_card()
-        if result is None: break
-        if result: scratch_card(player_keypair, *result)
-        time.sleep(1)
 
 if __name__ == "__main__":
     run_game()
