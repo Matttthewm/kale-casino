@@ -1,7 +1,8 @@
 import random
 import time
 import os
-import requests
+import hmac
+import hashlib
 from stellar_sdk import Server, Keypair, TransactionBuilder, Network, Asset
 
 # Stellar configuration
@@ -16,6 +17,9 @@ BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"
 KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"
 KALE_ASSET_CODE = "KALE"
 kale_asset = Asset(KALE_ASSET_CODE, KALE_ISSUER)
+
+# Shared secret for signing game outcomes (in practice, keep this in bank.py and use an API)
+SIGNING_SECRET = "SUPER_SECRET_KEY_12345"  # Replace with a secure key, kept only in bank.py
 
 player_balance = 0
 
@@ -112,15 +116,9 @@ def add_winnings(player_keypair, expected_amount, timeout=60):
     return False
 
 def generate_game_signature(game_id, cost):
-    url = "http://localhost:5000/sign_game"  # Bank's API endpoint
-    payload = {"game_id": game_id, "cost": cost}
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        return response.json()["signature"]
-    except Exception as e:
-        print(f"{RED}✗ Error fetching signature from bank: {e}{RESET}")
-        return None
+    message = f"{game_id}:{cost}"
+    signature = hmac.new(SIGNING_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()[:16]  # Shortened for memo
+    return signature
 
 def print_card(card_layout, num_seedlings):
     print(f"{CYAN}=== Scratch Card ==={RESET}")
@@ -160,8 +158,6 @@ def buy_scratch_off_card():
 def scratch_card(player_keypair, card_cost, num_seedlings):
     game_id = str(random.randint(100000, 999999))
     signature = generate_game_signature(game_id, card_cost)
-    if not signature:
-        return 0
     memo = f"Scratch {game_id} S:{signature}"
 
     symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"]
@@ -169,7 +165,7 @@ def scratch_card(player_keypair, card_cost, num_seedlings):
     hidden_layout = ["🌱"] * 12
     for i in range(num_seedlings):
         rand = random.random()
-        hidden_layout[i] = "👩‍🌾" if rand < 0.001 else "🥬" if rand < 0.021 else random.choice(symbols[:-2])
+        hidden_layout[i] = "👩‍🌾" if rand < 0.001 else "🥬" if rand < 0.05 else random.choice(symbols[:-2])
     print_card(card_layout, num_seedlings)
     for _ in range(num_seedlings):
         while True:
@@ -224,9 +220,9 @@ def play_slots(player_keypair):
                 continue
             game_id = str(random.randint(100000, 999999))
             signature = generate_game_signature(game_id, cost)
-            if not signature: continue
             memo = f"Slots {game_id} S:{signature}"
-            final_slots = ["👩‍🌾" if random.random() < 0.0001 else "🥬" if random.random() < 0.02 else random.choice(symbols[:-2]) for _ in range(slots)]
+            kale_prob = 0.02 if cost == 1000 else 0.05  # Keep 1000 KALE slots harder
+            final_slots = ["👩‍🌾" if random.random() < 0.0001 else "🥬" if random.random() < kale_prob else random.choice(symbols[:-2]) for _ in range(slots)]
             farmer_count = final_slots.count("👩‍🌾")
             kale_count = final_slots.count("🥬")
             winnings = (500 * farmer_count + 20 * kale_count) * (cost // 10)
@@ -272,7 +268,6 @@ def play_three_card_monte(player_keypair):
                 continue
             game_id = str(random.randint(100000, 999999))
             signature = generate_game_signature(game_id, cost)
-            if not signature: continue
             memo = f"Monte {game_id} S:{signature}"
             cards = ["🥬"] + ["🌱"] * (num_cards - 1)
             random.shuffle(cards)
