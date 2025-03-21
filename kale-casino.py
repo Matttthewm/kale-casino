@@ -3,8 +3,9 @@ import time
 import os
 import hmac
 import hashlib
+import requests
 from stellar_sdk import Server, Keypair, TransactionBuilder, Network, Asset
-from dotenv import load_dotenv  # Importing the dotenv package
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,15 +15,16 @@ HORIZON_SERVER = "https://horizon.stellar.org"
 server = Server(HORIZON_SERVER)
 NETWORK_PASSPHRASE = Network.PUBLIC_NETWORK_PASSPHRASE
 
-# Bank's public key (loaded from environment variable)
+# Bank's public key and API (loaded from environment variable)
 BANK_PUBLIC_KEY = os.getenv("BANK_PUBLIC_KEY")
+BANK_API_URL = os.getenv("BANK_API_URL", "http://127.0.0.1:5000")  # Default to localhost
 
-# KALE token configuration (from environment variable)
+# KALE token configuration
 KALE_ISSUER = os.getenv("KALE_ISSUER")
 KALE_ASSET_CODE = "KALE"
 kale_asset = Asset(KALE_ASSET_CODE, KALE_ISSUER)
 
-# Shared secret for signing game outcomes (use environment variable for security)
+# Shared secret for signing game outcomes
 SIGNING_SECRET = os.getenv("SIGNING_SECRET", "DEFAULT_SECRET_KEY")
 
 player_balance = 0
@@ -101,9 +103,27 @@ def deduct_kale(player_keypair, amount, memo):
         print(f"{RED}✗ Error deducting KALE: {e}{RESET}")
         return False
 
-def add_winnings(player_keypair, expected_amount, timeout=60):
+def add_winnings(player_keypair, expected_amount, game_id, cost, timeout=60):
     global player_balance
-    print(f"{YELLOW}🏆 You won {expected_amount} KALE! Awaiting payout...{RESET}")
+    print(f"{YELLOW}🏆 You won {expected_amount} KALE! Requesting payout...{RESET}")
+    signature = generate_game_signature(game_id, cost)
+    payload = {
+        "game_id": game_id,
+        "cost": cost,
+        "signature": signature,
+        "destination": player_keypair.public_key,
+        "game_type": "Scratch"  # Adjust for other games if implemented
+    }
+    try:
+        response = requests.post(f"{BANK_API_URL}/payout", json=payload, timeout=10)
+        if response.status_code == 200:
+            print(f"{GREEN}✓ Payout requested successfully!{RESET}")
+        else:
+            print(f"{RED}✗ Bank error: {response.text}{RESET}")
+    except Exception as e:
+        print(f"{RED}✗ Failed to contact bank: {e}{RESET}")
+    
+    # Fallback: Check balance for confirmation
     initial_balance = fetch_kale_balance(player_keypair)
     for _ in range(timeout // 2):
         new_balance = fetch_kale_balance(player_keypair)
@@ -121,7 +141,7 @@ def add_winnings(player_keypair, expected_amount, timeout=60):
 
 def generate_game_signature(game_id, cost):
     message = f"{game_id}:{cost}"
-    signature = hmac.new(SIGNING_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()[:16]  # Shortened for memo
+    signature = hmac.new(SIGNING_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()[:16]
     return signature
 
 def print_card(card_layout, num_seedlings):
@@ -188,10 +208,25 @@ def scratch_card(player_keypair, card_cost, num_seedlings):
     if deduct_kale(player_keypair, card_cost, memo):
         if winnings > 0:
             print(f"\n{YELLOW}🏆 {'JACKPOT! 3+ Farmers!' if farmer_count >= 3 else 'Two Farmers!' if farmer_count == 2 else 'You win!'}{RESET}")
+            return add_winnings(player_keypair, winnings, game_id, card_cost)
         else:
             print(f"{RED}✗ No winning combination found.{RESET}")
-        return add_winnings(player_keypair, winnings)
+            return True  # Still consider it a success since payment went through
     return False
+
+def play_scratch_offs(player_keypair):
+    result = buy_scratch_off_card()
+    if result is None:  # User chose to go back to menu
+        return
+    if result is False:  # Invalid choice or insufficient funds
+        time.sleep(1)
+        return
+    cost, seedlings = result
+    scratch_card(player_keypair, cost, seedlings)
+    time.sleep(2)  # Give user time to see results
+
+def play_slots(player_keypair): pass  # Placeholder for future implementation
+def play_three_card_monte(player_keypair): pass  # Placeholder for future implementation
 
 def run_game():
     global player_balance
