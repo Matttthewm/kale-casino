@@ -8,7 +8,7 @@
     <pre><code>pip install stellar-sdk</code></pre>
     <li>Set up your Stellar account, obtain your <code>SECRET_KEY</code>, and follow the KALE trustline.</li>
     <li>Run the program and enter your secret key when prompted:</li>
-    <pre><code>python kale_casino.py</code></pre>
+    <pre><code>python casino.py</code></pre>
 </ol>
 
 <h3>Games Available:</h3>
