@@ -1,5 +1,5 @@
 <h2 class="emoji">🎲🥬 Kale Casino</h2>
-<p>Welcome to the new and improved Kale Casino! With enhanced odds, improved payouts, better security, and plans for a web interface, the experience is better than ever. 🌟</p>
+<p>Welcome to the Kale Casino v0.2!</p>
 
 <h3>Games Available:</h3>
 <h3>1️⃣ Scratch-Off</h3>
