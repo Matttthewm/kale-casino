@@ -1,10 +1,19 @@
 <h2 class="emoji">🎲🥬 Kale Casino</h2>
 <p>Welcome to the Kale Casino v0.2!</p>
 
+<h2 class="emoji">🔧 Setup Instructions</h2>
+<p>To get started, follow these steps:</p>
+<ol>
+    <li>Install Python and the required dependency:</li>
+    <pre><code>pip install stellar-sdk</code></pre>
+    <li>Set up your Stellar account, obtain your <code>SECRET_KEY</code>, and follow the KALE trustline.</li>
+    <li>Run the program and enter your secret key when prompted:</li>
+    <pre><code>python kale_casino.py</code></pre>
+</ol>
+
 <h3>Games Available:</h3>
 <h3>1️⃣ Scratch-Off</h3>
 <ul>
-    <li>Ensure you have <code>KALE</code> tokens and a trustline established.</li>
     <li>Choose from different scratch-off cards:</li>
     <ul>
         <li>10 KALE - Tiny Plot (3 spots)</li>
@@ -35,16 +44,6 @@
     <li>2 Farmers (👩‍🌾) → <strong>1,000 KALE</strong></li>
     <li>3 Kale (🥬) → <strong>500 KALE</strong></li>
 </ul>
-
-<h2 class="emoji">🔧 Setup Instructions</h2>
-<p>To get started, follow these steps:</p>
-<ol>
-    <li>Install Python and the required dependency:</li>
-    <pre><code>pip install stellar-sdk</code></pre>
-    <li>Set up your Stellar account, obtain your <code>SECRET_KEY</code>, and follow the KALE trustline.</li>
-    <li>Run the program and enter your secret key when prompted:</li>
-    <pre><code>python kale_casino.py</code></pre>
-</ol>
 
 <h2 class="emoji">⚠️ Disclaimer</h2>
 <p>This is a fun casino simulation and requires <code>KALE</code> tokens. Play responsibly! 🎭</p>
