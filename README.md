@@ -40,13 +40,14 @@
 <h2 class="emoji">💰 Winnings</h2>
 <p>Winning payouts depend on the number of special symbols you uncover in Scratch-Offs:</p>
 <ul>
+    Jackpots:
     <li>3 Farmers (👩‍🌾) → <strong>10,000 KALE</strong></li>
     <li>2 Farmers (👩‍🌾) → <strong>1,000 KALE</strong></li>
     <li>3 Kale (🥬) → <strong>500 KALE</strong></li>
 </ul>
 
 <h2 class="emoji">⚠️ Disclaimer</h2>
-<p>This is a fun casino simulation and requires <code>KALE</code> tokens. Play responsibly! 🎭</p>
+<p>This is a fun casino simulation and requires <code>KALE</code> tokens. There are many bugs and Kale Casino is not responsible for any lost tokens or glitches. Play responsibly! 🎭</p>
 
 <h2 class="emoji">🙏 Donate</h2>
 <p>Support the casino by donating <code>KALE</code> tokens to:</p>
