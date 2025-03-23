@@ -31,6 +31,31 @@ body {
     border-radius: 5px;
 }
 
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 20px;
+    background-color: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.loading-bar {
+    width: 0;
+    height: 100%;
+    background-color: #3498db;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { width: 0; }
+    50% { width: 100%; }
+    100% { width: 0; }
+}
+
 h1 {
     font-size: 2.5em;
     margin: 10px 0;
@@ -81,20 +106,20 @@ input {
 .game {
     margin-top: 20px;
     font-size: 2em;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
     gap: 10px;
 }
 
 .game span {
-    margin: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
-.grid-6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
 .grid-9 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-.grid-12 { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); }
+.grid-12 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr); }
+.grid-6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-5 { grid-template-columns: repeat(5, 1fr); }
 
