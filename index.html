@@ -25,6 +25,7 @@
             <button onclick="showSlots()">2. Slots</button>
             <button onclick="showMonte()">3. Monte</button>
             <button onclick="logout()">4. Exit</button>
+            <div id="dialogue" class="dialogue"></div>
         </div>
         <div id="scratch" class="screen hidden">
             <h1>🥬 Kale Casino Scratch-Off 🥬</h1>
@@ -33,6 +34,7 @@
             <button onclick="buyScratchCard(1000, 12)">3. 1000 KALE - Farm Field (12 spots)</button>
             <button onclick="backToMenu()">4. Back to Menu</button>
             <div id="scratchCard" class="game hidden"></div>
+            <div id="scratchDialogue" class="dialogue"></div>
         </div>
         <div id="slots" class="screen hidden">
             <h1>🥬 Kale Casino Slots 🥬</h1>
@@ -41,6 +43,7 @@
             <button onclick="buySlots(1000, 9)">3. 1000 KALE - 9 Reels</button>
             <button onclick="backToMenu()">4. Back to Menu</button>
             <div id="slotsGame" class="game hidden"></div>
+            <div id="slotsDialogue" class="dialogue"></div>
         </div>
         <div id="monte" class="screen hidden">
             <h1>🥬 Kale Casino Three Card Monte 🥬</h1>
@@ -49,6 +52,7 @@
             <button onclick="buyMonte(1000, 5, 15)">3. 1000 KALE - 5 Cards</button>
             <button onclick="backToMenu()">4. Back to Menu</button>
             <div id="monteGame" class="game hidden"></div>
+            <div id="monteDialogue" class="dialogue"></div>
         </div>
     </div>
     <script src="app.js"></script>
