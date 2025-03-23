@@ -1,5 +1,6 @@
 function initApp() {
-    const server = new StellarSdk.Server("https://horizon.stellar.org");
+    // Use StellarSdk.Horizon.Server instead of StellarSdk.Server
+    const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
     const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7";
     const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE";
