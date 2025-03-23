@@ -1,7 +1,7 @@
 const server = new Stellar.Server("https://horizon.stellar.org");
 const NETWORK_PASSPHRASE = Stellar.Network.PUBLIC_NETWORK_PASSPHRASE;
-const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7";
-const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE";
+const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; // Replace with your key
+const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; // Replace with your issuer
 const KALE_ASSET_CODE = "KALE";
 const kale_asset = new Stellar.Asset(KALE_ASSET_CODE, KALE_ISSUER);
 const BANK_API_URL = "http://127.0.0.1:5000";
@@ -16,52 +16,77 @@ function showScreen(screenId) {
 }
 
 async function ensureTrustline() {
-    const account = await server.loadAccount(playerKeypair.publicKey);
-    if (!account.balances.some(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER)) {
-        const transaction = new Stellar.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
-            .addOperation(Stellar.Operation.changeTrust({ asset: kale_asset }))
-            .setTimeout(30)
-            .build();
-        transaction.sign(playerKeypair);
-        await server.submitTransaction(transaction);
+    try {
+        const account = await server.loadAccount(playerKeypair.publicKey);
+        if (!account.balances.some(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER)) {
+            const transaction = new Stellar.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
+                .addOperation(Stellar.Operation.changeTrust({ asset: kale_asset }))
+                .setTimeout(30)
+                .build();
+            transaction.sign(playerKeypair);
+            await server.submitTransaction(transaction);
+            console.log("Trustline established.");
+        }
+    } catch (e) {
+        alert(`✗ Error with trustline: ${e.message}`);
+        throw e;
     }
 }
 
 async function fetchBalance() {
-    const account = await server.loadAccount(playerKeypair.publicKey);
-    const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
-    playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
-    document.getElementById("balance").textContent = playerBalance;
+    try {
+        const account = await server.loadAccount(playerKeypair.publicKey);
+        const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
+        playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
+        document.getElementById("balance").textContent = playerBalance;
+    } catch (e) {
+        alert(`✗ Error fetching balance: ${e.message}`);
+    }
 }
 
 async function deductKale(amount, memo) {
-    const account = await server.loadAccount(playerKeypair.publicKey);
-    const transaction = new Stellar.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
-        .addOperation(Stellar.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
-        .addMemo(Stellar.Memo.text(memo.slice(0, 28)))
-        .setTimeout(30)
-        .build();
-    transaction.sign(playerKeypair);
-    const response = await server.submitTransaction(transaction);
-    if (response.successful) playerBalance -= amount;
-    return response.successful;
+    try {
+        const account = await server.loadAccount(playerKeypair.publicKey);
+        const transaction = new Stellar.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
+            .addOperation(Stellar.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
+            .addMemo(Stellar.Memo.text(memo.slice(0, 28)))
+            .setTimeout(30)
+            .build();
+        transaction.sign(playerKeypair);
+        const response = await server.submitTransaction(transaction);
+        if (response.successful) {
+            playerBalance -= amount;
+            return true;
+        }
+        alert(`✗ Transaction failed: ${response}`);
+        return false;
+    } catch (e) {
+        alert(`✗ Error deducting KALE: ${e.message}`);
+        return false;
+    }
 }
 
 async function addWinnings(gameId, cost, gameType, choices) {
     const signature = generateGameSignature(gameId, cost);
-    const response = await fetch(`${BANK_API_URL}/payout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey, game_type: gameType, choices })
-    });
-    const data = await response.json();
-    if (data.status === "success" && data.amount > 0) {
-        playerBalance += data.amount;
-        alert(`🏆 You Won ${data.amount} KALE!`);
-    } else if (gameType === "Slots") {
-        alert("✗ You Lose! Try Again!");
+    try {
+        const response = await fetch(`${BANK_API_URL}/payout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey, game_type: gameType, choices })
+        });
+        const data = await response.json();
+        if (data.status === "success" && data.amount > 0) {
+            playerBalance += data.amount;
+            alert(`🏆 You Won ${data.amount} KALE!`);
+        } else if (gameType === "Slots") {
+            alert("✗ You Lose! Try Again!");
+        } else {
+            alert("✗ No winnings received.");
+        }
+        await fetchBalance();
+    } catch (e) {
+        alert(`✗ Failed to contact bank: ${e.message}`);
     }
-    await fetchBalance();
 }
 
 function generateGameSignature(gameId, cost) {
@@ -70,12 +95,17 @@ function generateGameSignature(gameId, cost) {
 }
 
 function login() {
-    const secret = document.getElementById("secretKey").value;
+    const secret = document.getElementById("secretKey").value.trim();
+    if (!secret) {
+        alert("✗ Please enter a secret key!");
+        return;
+    }
     try {
         playerKeypair = Stellar.Keypair.fromSecret(secret);
-        ensureTrustline().then(() => {
-            fetchBalance().then(() => showScreen("menu"));
-        }).catch(e => alert(`Error: ${e}`));
+        ensureTrustline()
+            .then(() => fetchBalance())
+            .then(() => showScreen("menu"))
+            .catch(e => alert(`✗ Login failed: ${e.message}`));
     } catch (e) {
         alert("✗ Invalid secret key!");
     }
@@ -83,6 +113,7 @@ function login() {
 
 function logout() {
     playerKeypair = null;
+    playerBalance = 0;
     showScreen("splash");
     setTimeout(() => showScreen("login"), 2000);
 }
@@ -209,4 +240,9 @@ function showScratchOffs() { showScreen("scratch"); }
 function showSlots() { showScreen("slots"); }
 function showMonte() { showScreen("monte"); }
 
-setTimeout(() => showScreen("login"), 2000);
+// Ensure splash screen transitions to login after 2 seconds
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        showScreen("login");
+    }, 2000);
+});
