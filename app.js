@@ -5,7 +5,7 @@ function initApp() {
     const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; 
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
-    const BANK_API_URL = "http://kalecasino.pythonanywhere.com"; // Replace with your deployed bank API URL
+    const BANK_API_URL = "https://kalecasino.pythonanywhere.com"; // Replace with your deployed bank API URL
     let playerKeypair = null;
     let playerBalance = 0;
 
