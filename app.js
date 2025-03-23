@@ -225,5 +225,5 @@ function initApp() {
     window.showMonte = showMonte;
 }
 
-// Run the app directly (defer ensures StellarSdk is loaded)
+// Run the app directly
 initApp();
