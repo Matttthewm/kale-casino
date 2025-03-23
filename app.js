@@ -1,21 +1,10 @@
-// Wait for Stellar to be defined before running the app
-function waitForStellar(callback) {
-    if (typeof Stellar !== "undefined") {
-        callback();
-    } else {
-        console.log("Waiting for Stellar SDK to load...");
-        setTimeout(() => waitForStellar(callback), 100); // Retry every 100ms
-    }
-}
-
-// Main app logic wrapped in a function
 function initApp() {
-    const server = new Stellar.Server("https://horizon.stellar.org");
-    const NETWORK_PASSPHRASE = Stellar.Network.PUBLIC_NETWORK_PASSPHRASE;
+    const server = new StellarSdk.Server("https://horizon.stellar.org");
+    const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
     const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7";
     const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE";
     const KALE_ASSET_CODE = "KALE";
-    const kale_asset = new Stellar.Asset(KALE_ASSET_CODE, KALE_ISSUER);
+    const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     const BANK_API_URL = "http://127.0.0.1:5000";
     let playerKeypair = null;
     let playerBalance = 0;
@@ -28,10 +17,10 @@ function initApp() {
     }
 
     async function ensureTrustline() {
-        const account = await server.loadAccount(playerKeypair.publicKey);
+        const account = await server.loadAccount(playerKeypair.publicKey());
         if (!account.balances.some(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER)) {
-            const transaction = new Stellar.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
-                .addOperation(Stellar.Operation.changeTrust({ asset: kale_asset }))
+            const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
+                .addOperation(StellarSdk.Operation.changeTrust({ asset: kale_asset }))
                 .setTimeout(30)
                 .build();
             transaction.sign(playerKeypair);
@@ -40,17 +29,17 @@ function initApp() {
     }
 
     async function fetchBalance() {
-        const account = await server.loadAccount(playerKeypair.publicKey);
+        const account = await server.loadAccount(playerKeypair.publicKey());
         const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
         playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
         document.getElementById("balance").textContent = playerBalance;
     }
 
     async function deductKale(amount, memo) {
-        const account = await server.loadAccount(playerKeypair.publicKey);
-        const transaction = new Stellar.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
-            .addOperation(Stellar.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
-            .addMemo(Stellar.Memo.text(memo.slice(0, 28)))
+        const account = await server.loadAccount(playerKeypair.publicKey());
+        const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
+            .addOperation(StellarSdk.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
+            .addMemo(StellarSdk.Memo.text(memo.slice(0, 28)))
             .setTimeout(30)
             .build();
         transaction.sign(playerKeypair);
@@ -64,7 +53,7 @@ function initApp() {
         const response = await fetch(`${BANK_API_URL}/payout`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey, game_type: gameType, choices })
+            body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
         });
         const data = await response.json();
         if (data.status === "success" && data.amount > 0) {
@@ -78,13 +67,13 @@ function initApp() {
 
     function generateGameSignature(gameId, cost) {
         const message = `${gameId}:${cost}`;
-        return Stellar.StrKey.encodeCheck("hash", new TextEncoder().encode(message)).slice(0, 16);
+        return StellarSdk.StrKey.encodeCheck("hash", new TextEncoder().encode(message)).slice(0, 16);
     }
 
     function login() {
         const secret = document.getElementById("secretKey").value;
         try {
-            playerKeypair = Stellar.Keypair.fromSecret(secret);
+            playerKeypair = StellarSdk.Keypair.fromSecret(secret);
             ensureTrustline().then(() => {
                 fetchBalance().then(() => showScreen("menu"));
             }).catch(e => alert(`Error: ${e}`));
@@ -221,6 +210,7 @@ function initApp() {
     function showSlots() { showScreen("slots"); }
     function showMonte() { showScreen("monte"); }
 
+    // Start by showing the splash screen, then transition to login
     setTimeout(() => showScreen("login"), 2000);
 
     // Expose functions to global scope for HTML onclick handlers
@@ -235,5 +225,5 @@ function initApp() {
     window.showMonte = showMonte;
 }
 
-// Start the app when Stellar is ready
-waitForStellar(initApp);
+// Run the app directly (defer ensures StellarSdk is loaded)
+initApp();
