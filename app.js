@@ -15,11 +15,20 @@ function initApp() {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
         document.getElementById(screenId).classList.remove("hidden");
         updateDialogue("", screenId === "menu" ? "dialogue" : `${screenId}Dialogue`);
+        if (screenId !== "splash" && screenId !== "login") {
+            document.getElementById("balanceBar").classList.remove("hidden");
+        } else {
+            document.getElementById("balanceBar").classList.add("hidden");
+        }
     }
 
     function updateDialogue(message, dialogueId = "dialogue") {
         const dialogue = document.getElementById(dialogueId);
         dialogue.innerHTML = message;
+    }
+
+    function updateBalanceDisplay() {
+        document.getElementById("balance").textContent = playerBalance.toFixed(2);
     }
 
     async function ensureTrustline() {
@@ -40,10 +49,10 @@ function initApp() {
         const account = await server.loadAccount(playerKeypair.publicKey());
         const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
         playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
-        document.getElementById("balance").textContent = playerBalance;
+        updateBalanceDisplay();
     }
 
-    async function deductKale(amount, memo) {
+    async function deductKale(amount, memo, dialogueId) {
         const account = await server.loadAccount(playerKeypair.publicKey());
         const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
             .addOperation(StellarSdk.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
@@ -54,13 +63,15 @@ function initApp() {
         const response = await server.submitTransaction(transaction);
         if (response.successful) {
             playerBalance -= amount;
-            updateDialogue(`✓ ${amount} KALE sent to casino.`);
-            await fetchBalance();
+            updateDialogue(`✓ ${amount} KALE deducted for game.`, dialogueId);
+            updateBalanceDisplay();
+        } else {
+            updateDialogue("✗ Transaction failed.", dialogueId);
         }
         return response.successful;
     }
 
-    async function addWinnings(gameId, cost, gameType, choices) {
+    async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
         const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -76,13 +87,15 @@ function initApp() {
         if (data.status === "success") {
             if (data.amount > 0) {
                 playerBalance += data.amount;
-                updateDialogue(`🏆 You Won ${data.amount} KALE!`);
+                updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
             } else if (gameType === "Slots") {
-                updateDialogue("✗ You Lose! Try Again!");
+                updateDialogue("✗ You Lose! Try Again!", dialogueId);
             } else {
-                updateDialogue("✗ No winnings received.");
+                updateDialogue("✗ No winnings received.", dialogueId);
             }
-            await fetchBalance();
+            updateBalanceDisplay();
+        } else {
+            updateDialogue("✗ Bank error.", dialogueId);
         }
         return data.status === "success";
     }
@@ -104,7 +117,7 @@ function initApp() {
 
     function logout() {
         playerKeypair = null;
-        updateDialogue("✓ Thanks for playing!");
+        updateDialogue(`✓ Thanks for playing! Final balance: ${playerBalance} KALE`);
         showScreen("splash");
         setTimeout(() => showScreen("login"), 2000);
     }
@@ -147,8 +160,8 @@ function initApp() {
                     spot.textContent = hiddenLayout[index];
                     spot.classList.add("revealed");
                     if (choices.length === seedlings) {
-                        if (await deductKale(cost, `Scratch ${gameId}`)) {
-                            await addWinnings(gameId, cost, "Scratch", choices);
+                        if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
+                            await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
                             setTimeout(() => scratchCard.classList.add("hidden"), 2000);
                         }
                     }
@@ -172,7 +185,7 @@ function initApp() {
         const slotsGame = document.getElementById("slotsGame");
         slotsGame.classList.remove("hidden");
         slotsGame.classList.add(`grid-${reels}`);
-        if (await deductKale(cost, `Slots ${gameId}`)) {
+        if (await deductKale(cost, `Slots ${gameId}`, "slotsDialogue")) {
             let finalReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
             for (let i = 0; i < 5; i++) {
                 const tempReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
@@ -180,7 +193,7 @@ function initApp() {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
             renderSlots(finalReels, reels);
-            await addWinnings(gameId, cost, "Slots", finalReels);
+            await addWinnings(gameId, cost, "Slots", finalReels, "slotsDialogue");
             setTimeout(() => slotsGame.classList.add("hidden"), 2000);
         }
     }
@@ -233,8 +246,8 @@ function initApp() {
             if (cards) {
                 card.onclick = async () => {
                     monteGame.innerHTML = cards.map(c => `<span>${c}</span>`).join(" | ");
-                    if (await deductKale(cost, `Monte ${gameId}`)) {
-                        await addWinnings(gameId, cost, "Monte", [index + 1]);
+                    if (await deductKale(cost, `Monte ${gameId}`, "monteDialogue")) {
+                        await addWinnings(gameId, cost, "Monte", [index + 1], "monteDialogue");
                         updateDialogue(index + 1 === kalePos ? 
                             `✓ You found the kale at position ${kalePos}!` : 
                             `✗ The kale was at position ${kalePos}. You lose!`, "monteDialogue");
