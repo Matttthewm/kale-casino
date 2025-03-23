@@ -69,8 +69,43 @@ input {
 .game {
     margin-top: 20px;
     font-size: 2em;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
 }
 
 .game span {
     margin: 0 10px;
+}
+
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+.grid-9 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+.grid-12 { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+.scratch-spot, .monte-card {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 2em;
+    transition: background-color 0.3s;
+}
+
+.scratch-spot.revealed, .monte-card:hover {
+    background-color: #fff;
+}
+
+.dialogue {
+    margin-top: 20px;
+    font-size: 1.5em;
+    color: #333;
+    min-height: 2em;
 }
