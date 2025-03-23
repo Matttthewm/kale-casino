@@ -1,8 +1,8 @@
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
-    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; // Replace with actual key from .env
-    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; // Replace with actual issuer from .env
+    const BANK_PUBLIC_KEY = "YOUR_BANK_PUBLIC_KEY"; // Replace with actual key from .env
+    const KALE_ISSUER = "YOUR_KALE_ISSUER"; // Replace with actual issuer from .env
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     const BANK_API_URL = "http://127.0.0.1:5000";
@@ -27,11 +27,20 @@ function initApp() {
         dialogue.innerHTML = message;
     }
 
+    function showLoading() {
+        document.getElementById("loading").classList.remove("hidden");
+    }
+
+    function hideLoading() {
+        document.getElementById("loading").classList.add("hidden");
+    }
+
     function updateBalanceDisplay() {
         document.getElementById("balance").textContent = playerBalance.toFixed(2);
     }
 
     async function ensureTrustline() {
+        showLoading();
         const account = await server.loadAccount(playerKeypair.publicKey());
         if (!account.balances.some(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER)) {
             const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
@@ -42,17 +51,21 @@ function initApp() {
             await server.submitTransaction(transaction);
             updateDialogue("✓ Trustline for KALE established.");
         }
+        hideLoading();
         return true;
     }
 
     async function fetchBalance() {
+        showLoading();
         const account = await server.loadAccount(playerKeypair.publicKey());
         const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
         playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
         updateBalanceDisplay();
+        hideLoading();
     }
 
     async function deductKale(amount, memo, dialogueId) {
+        showLoading();
         const account = await server.loadAccount(playerKeypair.publicKey());
         const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
             .addOperation(StellarSdk.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
@@ -68,10 +81,12 @@ function initApp() {
         } else {
             updateDialogue("✗ Transaction failed.", dialogueId);
         }
+        hideLoading();
         return response.successful;
     }
 
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
+        showLoading();
         const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -97,6 +112,7 @@ function initApp() {
         } else {
             updateDialogue("✗ Bank error.", dialogueId);
         }
+        hideLoading();
         return data.status === "success";
     }
 
