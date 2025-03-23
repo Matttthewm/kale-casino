@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kale Casino</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" class="container">
+        <div id="splash" class="screen">
+            <h1>🥬🥬🥬 Welcome to Kale Casino! 🥬🥬🥬</h1>
+            <h2>🎰 Scratch! Spin! Win! 🎰</h2>
+        </div>
+        <div id="login" class="screen hidden">
+            <h1>👩‍🌾 Enter Your Stellar Secret Key 👩‍🌾</h1>
+            <input type="text" id="secretKey" placeholder="Enter secret key">
+            <button onclick="login()">Login</button>
+        </div>
+        <div id="menu" class="screen hidden">
+            <h1>👩‍🌾 Balance: <span id="balance">0</span> KALE 👩‍🌾</h1>
+            <h2>🎲 Kale Casino Games 🎲</h2>
+            <button onclick="showScratchOffs()">1. Scratch-Off</button>
+            <button onclick="showSlots()">2. Slots</button>
+            <button onclick="showMonte()">3. Monte</button>
+            <button onclick="logout()">4. Exit</button>
+        </div>
+        <div id="scratch" class="screen hidden">
+            <h1>🥬 Kale Casino Scratch-Off 🥬</h1>
+            <button onclick="buyScratchCard(10, 3)">1. 10 KALE - Tiny Plot (3 spots)</button>
+            <button onclick="buyScratchCard(100, 9)">2. 100 KALE - Garden Bed (9 spots)</button>
+            <button onclick="buyScratchCard(1000, 12)">3. 1000 KALE - Farm Field (12 spots)</button>
+            <button onclick="backToMenu()">4. Back to Menu</button>
+            <div id="scratchCard" class="game hidden"></div>
+        </div>
+        <div id="slots" class="screen hidden">
+            <h1>🥬 Kale Casino Slots 🥬</h1>
+            <button onclick="buySlots(10, 3)">1. 10 KALE - 3 Reels</button>
+            <button onclick="buySlots(100, 6)">2. 100 KALE - 6 Reels</button>
+            <button onclick="buySlots(1000, 9)">3. 1000 KALE - 9 Reels</button>
+            <button onclick="backToMenu()">4. Back to Menu</button>
+            <div id="slotsGame" class="game hidden"></div>
+        </div>
+        <div id="monte" class="screen hidden">
+            <h1>🥬 Kale Casino Three Card Monte 🥬</h1>
+            <button onclick="buyMonte(10, 3, 5)">1. 10 KALE - 3 Cards</button>
+            <button onclick="buyMonte(100, 4, 10)">2. 100 KALE - 4 Cards</button>
+            <button onclick="buyMonte(1000, 5, 15)">3. 1000 KALE - 5 Cards</button>
+            <button onclick="backToMenu()">4. Back to Menu</button>
+            <div id="monteGame" class="game hidden"></div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/10.0.1/stellar-sdk.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
