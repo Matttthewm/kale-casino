@@ -1,8 +1,8 @@
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
-    const BANK_PUBLIC_KEY = "YOUR_BANK_PUBLIC_KEY"; // Replace with actual key from .env
-    const KALE_ISSUER = "YOUR_KALE_ISSUER"; // Replace with actual issuer from .env
+    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; // Replace with actual key from .env
+    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; // Replace with actual issuer from .env
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     const BANK_API_URL = "http://127.0.0.1:5000";
