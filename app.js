@@ -1,8 +1,8 @@
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
-    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7";
-    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE";
+    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; // Replace with actual key from .env
+    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; // Replace with actual issuer from .env
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     const BANK_API_URL = "http://127.0.0.1:5000";
@@ -14,6 +14,12 @@ function initApp() {
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
         document.getElementById(screenId).classList.remove("hidden");
+        updateDialogue("", screenId === "menu" ? "dialogue" : `${screenId}Dialogue`);
+    }
+
+    function updateDialogue(message, dialogueId = "dialogue") {
+        const dialogue = document.getElementById(dialogueId);
+        dialogue.innerHTML = message;
     }
 
     async function ensureTrustline() {
@@ -25,7 +31,9 @@ function initApp() {
                 .build();
             transaction.sign(playerKeypair);
             await server.submitTransaction(transaction);
+            updateDialogue("✓ Trustline for KALE established.");
         }
+        return true;
     }
 
     async function fetchBalance() {
@@ -44,30 +52,39 @@ function initApp() {
             .build();
         transaction.sign(playerKeypair);
         const response = await server.submitTransaction(transaction);
-        if (response.successful) playerBalance -= amount;
+        if (response.successful) {
+            playerBalance -= amount;
+            updateDialogue(`✓ ${amount} KALE sent to casino.`);
+            await fetchBalance();
+        }
         return response.successful;
     }
 
     async function addWinnings(gameId, cost, gameType, choices) {
-        const signature = generateGameSignature(gameId, cost);
+        const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_id: gameId, cost })
+        });
+        const { signature } = await signatureResponse.json();
         const response = await fetch(`${BANK_API_URL}/payout`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
         });
         const data = await response.json();
-        if (data.status === "success" && data.amount > 0) {
-            playerBalance += data.amount;
-            alert(`🏆 You Won ${data.amount} KALE!`);
-        } else if (gameType === "Slots") {
-            alert("✗ You Lose! Try Again!");
+        if (data.status === "success") {
+            if (data.amount > 0) {
+                playerBalance += data.amount;
+                updateDialogue(`🏆 You Won ${data.amount} KALE!`);
+            } else if (gameType === "Slots") {
+                updateDialogue("✗ You Lose! Try Again!");
+            } else {
+                updateDialogue("✗ No winnings received.");
+            }
+            await fetchBalance();
         }
-        await fetchBalance();
-    }
-
-    function generateGameSignature(gameId, cost) {
-        const message = `${gameId}:${cost}`;
-        return StellarSdk.StrKey.encodeCheck("hash", new TextEncoder().encode(message)).slice(0, 16);
+        return data.status === "success";
     }
 
     function login() {
@@ -75,15 +92,19 @@ function initApp() {
         try {
             playerKeypair = StellarSdk.Keypair.fromSecret(secret);
             ensureTrustline().then(() => {
-                fetchBalance().then(() => showScreen("menu"));
-            }).catch(e => alert(`Error: ${e}`));
+                fetchBalance().then(() => {
+                    updateDialogue(`✓ Logged in as ${playerKeypair.publicKey}`);
+                    showScreen("menu");
+                });
+            }).catch(e => updateDialogue(`✗ Error: ${e}`));
         } catch (e) {
-            alert("✗ Invalid secret key!");
+            updateDialogue("✗ Invalid secret key!");
         }
     }
 
     function logout() {
         playerKeypair = null;
+        updateDialogue("✓ Thanks for playing!");
         showScreen("splash");
         setTimeout(() => showScreen("login"), 2000);
     }
@@ -94,7 +115,7 @@ function initApp() {
 
     function buyScratchCard(cost, seedlings) {
         if (playerBalance < cost) {
-            alert(`✗ Need ${cost} KALE, only have ${playerBalance}!`);
+            updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "scratchDialogue");
             return;
         }
         playScratchCard(cost, seedlings);
@@ -102,39 +123,44 @@ function initApp() {
 
     async function playScratchCard(cost, seedlings) {
         const gameId = Math.floor(100000 + Math.random() * 900000).toString();
+        showScreen("scratch");
+        const scratchCard = document.getElementById("scratchCard");
+        scratchCard.classList.remove("hidden");
         const hiddenLayout = Array(seedlings).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
         let displayLayout = Array(seedlings).fill("🌱");
         const choices = [];
-        const scratchCard = document.getElementById("scratchCard");
-        scratchCard.classList.remove("hidden");
-        renderScratchCard(displayLayout, seedlings);
-
-        for (let i = 0; i < seedlings; i++) {
-            const choice = prompt(`Scratch (1-${seedlings}):`);
-            const box = parseInt(choice);
-            if (isNaN(box) || box < 1 || box > seedlings || choices.includes(box)) {
-                alert("✗ Invalid or scratched spot!");
-                i--;
-                continue;
-            }
-            choices.push(box);
-            displayLayout[box - 1] = hiddenLayout[box - 1];
-            renderScratchCard(displayLayout, seedlings);
-        }
-        if (await deductKale(cost, `Scratch ${gameId} S:${generateGameSignature(gameId, cost)}`)) {
-            await addWinnings(gameId, cost, "Scratch", choices);
-        }
-        scratchCard.classList.add("hidden");
+        renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost);
     }
 
-    function renderScratchCard(layout, seedlings) {
+    function renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost) {
         const scratchCard = document.getElementById("scratchCard");
-        scratchCard.innerHTML = layout.map(item => `<span>${item}</span>`).join(" | ");
+        scratchCard.innerHTML = "";
+        scratchCard.classList.add(`grid-${seedlings}`);
+        displayLayout.forEach((item, index) => {
+            const spot = document.createElement("div");
+            spot.classList.add("scratch-spot");
+            spot.textContent = item;
+            spot.onclick = async () => {
+                if (!choices.includes(index + 1)) {
+                    choices.push(index + 1);
+                    displayLayout[index] = hiddenLayout[index];
+                    spot.textContent = hiddenLayout[index];
+                    spot.classList.add("revealed");
+                    if (choices.length === seedlings) {
+                        if (await deductKale(cost, `Scratch ${gameId}`)) {
+                            await addWinnings(gameId, cost, "Scratch", choices);
+                            setTimeout(() => scratchCard.classList.add("hidden"), 2000);
+                        }
+                    }
+                }
+            };
+            scratchCard.appendChild(spot);
+        });
     }
 
     function buySlots(cost, reels) {
         if (playerBalance < cost) {
-            alert(`✗ Need ${cost} KALE, only have ${playerBalance}!`);
+            updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "slotsDialogue");
             return;
         }
         playSlots(cost, reels);
@@ -142,9 +168,11 @@ function initApp() {
 
     async function playSlots(cost, reels) {
         const gameId = Math.floor(100000 + Math.random() * 900000).toString();
+        showScreen("slots");
         const slotsGame = document.getElementById("slotsGame");
         slotsGame.classList.remove("hidden");
-        if (await deductKale(cost, `Slots ${gameId} S:${generateGameSignature(gameId, cost)}`)) {
+        slotsGame.classList.add(`grid-${reels}`);
+        if (await deductKale(cost, `Slots ${gameId}`)) {
             let finalReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
             for (let i = 0; i < 5; i++) {
                 const tempReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
@@ -153,18 +181,23 @@ function initApp() {
             }
             renderSlots(finalReels, reels);
             await addWinnings(gameId, cost, "Slots", finalReels);
+            setTimeout(() => slotsGame.classList.add("hidden"), 2000);
         }
-        slotsGame.classList.add("hidden");
     }
 
     function renderSlots(reels, numReels) {
         const slotsGame = document.getElementById("slotsGame");
-        slotsGame.innerHTML = reels.map(item => `<span>${item}</span>`).join(" | ");
+        slotsGame.innerHTML = "";
+        reels.forEach(item => {
+            const reel = document.createElement("span");
+            reel.textContent = item;
+            slotsGame.appendChild(reel);
+        });
     }
 
     function buyMonte(cost, cards, multiplier) {
         if (playerBalance < cost) {
-            alert(`✗ Need ${cost} KALE, only have ${playerBalance}!`);
+            updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "monteDialogue");
             return;
         }
         playMonte(cost, cards, multiplier);
@@ -172,31 +205,45 @@ function initApp() {
 
     async function playMonte(cost, numCards, multiplier) {
         const gameId = Math.floor(100000 + Math.random() * 900000).toString();
+        showScreen("monte");
+        const monteGame = document.getElementById("monteGame");
+        monteGame.classList.remove("hidden");
+        monteGame.classList.add(`grid-${numCards}`);
         const cards = ["🥬", ...Array(numCards - 1).fill("🌱")];
         shuffle(cards);
         const kalePos = cards.indexOf("🥬") + 1;
-        const monteGame = document.getElementById("monteGame");
-        monteGame.classList.remove("hidden");
-        renderMonte(Array(numCards).fill("🌱"), numCards);
-
+        let display = Array(numCards).fill("🌱");
+        renderMonte(display, numCards);
         for (let i = 0; i < 5; i++) {
             const temp = Array(numCards).fill("🌱");
             temp[Math.floor(Math.random() * numCards)] = "🥬";
             renderMonte(temp, numCards);
             await new Promise(resolve => setTimeout(resolve, 300));
         }
-        renderMonte(Array(numCards).fill("🌱"), numCards);
-        const guess = parseInt(prompt(`Guess where the kale is (1-${numCards}):`));
-        if (await deductKale(cost, `Monte ${gameId} S:${generateGameSignature(gameId, cost)}`)) {
-            renderMonte(cards, numCards);
-            await addWinnings(gameId, cost, "Monte", [guess]);
-        }
-        monteGame.classList.add("hidden");
+        renderMonte(display, numCards, cards, gameId, cost, kalePos);
     }
 
-    function renderMonte(cards, numCards) {
+    function renderMonte(display, numCards, cards = null, gameId = null, cost = null, kalePos = null) {
         const monteGame = document.getElementById("monteGame");
-        monteGame.innerHTML = cards.map(item => `<span>${item}</span>`).join(" | ");
+        monteGame.innerHTML = "";
+        display.forEach((item, index) => {
+            const card = document.createElement("div");
+            card.classList.add("monte-card");
+            card.textContent = item;
+            if (cards) {
+                card.onclick = async () => {
+                    monteGame.innerHTML = cards.map(c => `<span>${c}</span>`).join(" | ");
+                    if (await deductKale(cost, `Monte ${gameId}`)) {
+                        await addWinnings(gameId, cost, "Monte", [index + 1]);
+                        updateDialogue(index + 1 === kalePos ? 
+                            `✓ You found the kale at position ${kalePos}!` : 
+                            `✗ The kale was at position ${kalePos}. You lose!`, "monteDialogue");
+                        setTimeout(() => monteGame.classList.add("hidden"), 2000);
+                    }
+                };
+            }
+            monteGame.appendChild(card);
+        });
     }
 
     function shuffle(array) {
@@ -210,10 +257,8 @@ function initApp() {
     function showSlots() { showScreen("slots"); }
     function showMonte() { showScreen("monte"); }
 
-    // Start by showing the splash screen, then transition to login
     setTimeout(() => showScreen("login"), 2000);
 
-    // Expose functions to global scope for HTML onclick handlers
     window.login = login;
     window.logout = logout;
     window.backToMenu = backToMenu;
@@ -225,5 +270,4 @@ function initApp() {
     window.showMonte = showMonte;
 }
 
-// Run the app directly
 initApp();
