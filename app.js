@@ -1,11 +1,11 @@
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
-    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; // Replace with actual key from .env
-    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; // Replace with actual issuer from .env
+    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; 
+    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; 
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
-    const BANK_API_URL = "http://127.0.0.1:5000";
+    const BANK_API_URL = "https://kale-casino-bank.onrender.com"; // Replace with your deployed bank API URL
     let playerKeypair = null;
     let playerBalance = 0;
 
@@ -13,7 +13,8 @@ function initApp() {
 
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
-        document.getElementById(screenId).classList.remove("hidden");
+        const screen = document.getElementById(screenId);
+        if (screen) screen.classList.remove("hidden");
         updateDialogue("", screenId === "menu" ? "dialogue" : `${screenId}Dialogue`);
         if (screenId !== "splash" && screenId !== "login") {
             document.getElementById("balanceBar").classList.remove("hidden");
@@ -24,7 +25,7 @@ function initApp() {
 
     function updateDialogue(message, dialogueId = "dialogue") {
         const dialogue = document.getElementById(dialogueId);
-        dialogue.innerHTML = message;
+        if (dialogue) dialogue.innerHTML = message;
     }
 
     function showLoading() {
@@ -87,33 +88,41 @@ function initApp() {
 
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
         showLoading();
-        const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ game_id: gameId, cost })
-        });
-        const { signature } = await signatureResponse.json();
-        const response = await fetch(`${BANK_API_URL}/payout`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
-        });
-        const data = await response.json();
-        if (data.status === "success") {
-            if (data.amount > 0) {
-                playerBalance += data.amount;
-                updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
-            } else if (gameType === "Slots") {
-                updateDialogue("✗ You Lose! Try Again!", dialogueId);
+        try {
+            const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ game_id: gameId, cost })
+            });
+            if (!signatureResponse.ok) throw new Error("Failed to fetch signature");
+            const { signature } = await signatureResponse.json();
+            
+            const response = await fetch(`${BANK_API_URL}/payout`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
+            });
+            if (!response.ok) throw new Error("Payout request failed");
+            const data = await response.json();
+            
+            if (data.status === "success") {
+                if (data.amount > 0) {
+                    playerBalance += data.amount;
+                    updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
+                } else if (gameType === "Slots") {
+                    updateDialogue("✗ You Lose! Try Again!", dialogueId);
+                } else {
+                    updateDialogue("✗ No winnings received.", dialogueId);
+                }
+                updateBalanceDisplay();
             } else {
-                updateDialogue("✗ No winnings received.", dialogueId);
+                updateDialogue("✗ Bank error.", dialogueId);
             }
-            updateBalanceDisplay();
-        } else {
-            updateDialogue("✗ Bank error.", dialogueId);
+        } catch (error) {
+            updateDialogue(`✗ Error processing winnings: ${error.message}`, dialogueId);
         }
         hideLoading();
-        return data.status === "success";
+        return true;
     }
 
     function login() {
