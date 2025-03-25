@@ -1,4 +1,3 @@
-// app.js
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -110,10 +109,8 @@ function initApp() {
                 if (data.amount > 0) {
                     playerBalance += data.amount;
                     updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
-                } else if (gameType === "Slots") {
-                    updateDialogue("✗ You Lose! Try Again!", dialogueId);
                 } else {
-                    updateDialogue("✗ No winnings received.", dialogueId);
+                    updateDialogue("✗ You Lose! Try Again!", dialogueId);
                 }
                 updateBalanceDisplay();
             } else {
