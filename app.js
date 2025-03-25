@@ -5,11 +5,11 @@ function initApp() {
     const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; 
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
-    const BANK_API_URL = "https://kalecasino.pythonanywhere.com/"; // Replace with your deployed bank API URL
+    const BANK_API_URL = "https://kalecasino.pythonanywhere.com/";
     let playerKeypair = null;
     let playerBalance = 0;
 
-    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "🥬", "🥬", "👩‍🌾"];
+    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
@@ -215,7 +215,7 @@ function initApp() {
             for (let i = 0; i < 5; i++) {
                 const tempReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
                 renderSlots(tempReels, reels);
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
             renderSlots(finalReels, reels);
             await addWinnings(gameId, cost, "Slots", finalReels, "slotsDialogue");
@@ -270,7 +270,7 @@ function initApp() {
             card.textContent = item;
             if (cards) {
                 card.onclick = async () => {
-                    monteGame.innerHTML = cards.map(c => `<span>${c}</span>`).join(" | ");
+                    monteGame.innerHTML = cards.map(c => `<span>${c}</span>`).join(" ");
                     if (await deductKale(cost, `Monte ${gameId}`, "monteDialogue")) {
                         await addWinnings(gameId, cost, "Monte", [index + 1], "monteDialogue");
                         updateDialogue(index + 1 === kalePos ? 
