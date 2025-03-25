@@ -1,3 +1,4 @@
+// app.js
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -9,7 +10,7 @@ function initApp() {
     let playerKeypair = null;
     let playerBalance = 0;
 
-    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "🥬", "🥬", "👩‍🌾"];
+    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
@@ -164,7 +165,16 @@ function initApp() {
         showScreen("scratch");
         const scratchCard = document.getElementById("scratchCard");
         scratchCard.classList.remove("hidden");
-        const hiddenLayout = Array(seedlings).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
+        const hiddenLayout = Array(seedlings).fill().map(() => {
+            const rand = Math.random();
+            if (cost === 10) {
+                return rand < 0.1 ? "🥬" : rand < 0.15 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+            } else if (cost === 100) {
+                return rand < 0.2 ? "🥬" : rand < 0.25 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+            } else {
+                return rand < 0.3 ? "🥬" : rand < 0.35 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+            }
+        });
         let displayLayout = Array(seedlings).fill("🌱");
         const choices = [];
         renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost);
@@ -211,7 +221,16 @@ function initApp() {
         slotsGame.classList.remove("hidden");
         slotsGame.classList.add(`grid-${reels}`);
         if (await deductKale(cost, `Slots ${gameId}`, "slotsDialogue")) {
-            let finalReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
+            let finalReels = Array(reels).fill().map(() => {
+                const rand = Math.random();
+                if (cost === 10) {
+                    return rand < 0.1 ? "🥬" : rand < 0.15 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                } else if (cost === 100) {
+                    return rand < 0.2 ? "🥬" : rand < 0.25 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                } else {
+                    return rand < 0.3 ? "🥬" : rand < 0.35 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                }
+            });
             for (let i = 0; i < 5; i++) {
                 const tempReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
                 renderSlots(tempReels, reels);
