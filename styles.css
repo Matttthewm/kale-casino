@@ -24,7 +24,7 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    font-size: 1.5em;
+    font-size: 1.2em;
     color: #2ecc71;
     background-color: rgba(255, 255, 255, 0.8);
     padding: 5px 10px;
@@ -46,14 +46,8 @@ body {
 .loading-bar {
     width: 0;
     height: 100%;
-    background-color: #3498db;
-    animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-    0% { width: 0; }
-    50% { width: 100%; }
-    100% { width: 0; }
+    background-color: #2ecc71;
+    transition: width 0.1s linear;
 }
 
 h1 {
@@ -69,8 +63,8 @@ h2 {
 }
 
 button {
-    font-size: 1.5em;
-    padding: 10px 20px;
+    font-size: 1.2em;
+    padding: 8px 16px;
     margin: 5px;
     background-color: #3498db;
     color: white;
@@ -84,8 +78,8 @@ button:hover {
 }
 
 input {
-    font-size: 1.5em;
-    padding: 10px;
+    font-size: 1.2em;
+    padding: 8px;
     margin: 10px;
     width: 80%;
     max-width: 400px;
@@ -105,9 +99,9 @@ input {
 
 .game {
     margin-top: 20px;
-    font-size: 2em;
+    font-size: 3em;
     display: grid;
-    gap: 10px;
+    gap: 15px;
 }
 
 .game span {
@@ -124,15 +118,15 @@ input {
 .grid-5 { grid-template-columns: repeat(5, 1fr); }
 
 .scratch-spot, .monte-card {
-    width: 60px;
-    height: 60px;
+    width: 80px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: #ddd;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 2em;
+    font-size: 3em;
     transition: background-color 0.3s;
 }
 
@@ -142,7 +136,7 @@ input {
 
 .dialogue {
     margin-top: 20px;
-    font-size: 1.5em;
+    font-size: 1.2em;
     color: #333;
     min-height: 2em;
 }
