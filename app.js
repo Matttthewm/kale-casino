@@ -263,7 +263,7 @@ function initApp() {
     async function playMonte(cost, numCards, multiplier) {
         const gameId = Math.floor(100000 + Math.random() * 900000).toString();
         showScreen("monte");
-        const monteGame = document.get shElementById("monteGame");
+        const monteGame = document.getElementById("monteGame");
         monteGame.classList.remove("hidden");
         monteGame.classList.add(`grid-${numCards}`);
         const cards = ["🥬", ...Array(numCards - 1).fill("🌱")];
