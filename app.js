@@ -5,11 +5,11 @@ function initApp() {
     const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; 
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
-    const BANK_API_URL = "https://kalecasino.pythonanywhere.com/";
+    const BANK_API_URL = "https://kalecasino.pythonanywhere.com/"; // Replace with your deployed bank API URL
     let playerKeypair = null;
     let playerBalance = 0;
 
-    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
+    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "🥬", "🥬", "👩‍🌾"];
 
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
@@ -29,16 +29,7 @@ function initApp() {
     }
 
     function showLoading() {
-        const loading = document.getElementById("loading");
-        loading.classList.remove("hidden");
-        const loadingBar = document.querySelector(".loading-bar");
-        loadingBar.style.width = "0%";
-        loadingBar.dataset.startTime = Date.now();
-    }
-
-    function updateLoading(progress) {
-        const loadingBar = document.querySelector(".loading-bar");
-        loadingBar.style.width = `${progress}%`;
+        document.getElementById("loading").classList.remove("hidden");
     }
 
     function hideLoading() {
@@ -76,7 +67,6 @@ function initApp() {
 
     async function deductKale(amount, memo, dialogueId) {
         showLoading();
-        const startTime = Date.now();
         const account = await server.loadAccount(playerKeypair.publicKey());
         const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
             .addOperation(StellarSdk.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
@@ -85,8 +75,6 @@ function initApp() {
             .build();
         transaction.sign(playerKeypair);
         const response = await server.submitTransaction(transaction);
-        const elapsed = Date.now() - startTime;
-        updateLoading(Math.min((elapsed / 3000) * 100, 100));
         if (response.successful) {
             playerBalance -= amount;
             updateDialogue(`✓ ${amount} KALE deducted for game.`, dialogueId);
@@ -100,7 +88,6 @@ function initApp() {
 
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
         showLoading();
-        const startTime = Date.now();
         try {
             const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
                 method: "POST",
@@ -115,8 +102,6 @@ function initApp() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
             });
-            const elapsed = Date.now() - startTime;
-            updateLoading(Math.min((elapsed / 3000) * 100, 100));
             if (!response.ok) throw new Error("Payout request failed");
             const data = await response.json();
             
@@ -124,8 +109,10 @@ function initApp() {
                 if (data.amount > 0) {
                     playerBalance += data.amount;
                     updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
-                } else {
+                } else if (gameType === "Slots") {
                     updateDialogue("✗ You Lose! Try Again!", dialogueId);
+                } else {
+                    updateDialogue("✗ No winnings received.", dialogueId);
                 }
                 updateBalanceDisplay();
             } else {
@@ -225,7 +212,7 @@ function initApp() {
         slotsGame.classList.add(`grid-${reels}`);
         if (await deductKale(cost, `Slots ${gameId}`, "slotsDialogue")) {
             let finalReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
-            for (let i = 0; i < 15; i++) {
+            for (let i = 0; i < 5; i++) {
                 const tempReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
                 renderSlots(tempReels, reels);
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -246,15 +233,15 @@ function initApp() {
         });
     }
 
-    function buyMonte(cost, cards) {
+    function buyMonte(cost, cards, multiplier) {
         if (playerBalance < cost) {
             updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "monteDialogue");
             return;
         }
-        playMonte(cost, cards);
+        playMonte(cost, cards, multiplier);
     }
 
-    async function playMonte(cost, numCards) {
+    async function playMonte(cost, numCards, multiplier) {
         const gameId = Math.floor(100000 + Math.random() * 900000).toString();
         showScreen("monte");
         const monteGame = document.getElementById("monteGame");
@@ -283,7 +270,7 @@ function initApp() {
             card.textContent = item;
             if (cards) {
                 card.onclick = async () => {
-                    monteGame.innerHTML = cards.join(" ");
+                    monteGame.innerHTML = cards.map(c => `<span>${c}</span>`).join(" | ");
                     if (await deductKale(cost, `Monte ${gameId}`, "monteDialogue")) {
                         await addWinnings(gameId, cost, "Monte", [index + 1], "monteDialogue");
                         updateDialogue(index + 1 === kalePos ? 
