@@ -9,7 +9,7 @@ function initApp() {
     let playerKeypair = null;
     let playerBalance = 0;
 
-    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
+    const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "🥬", "🥬", "👩‍🌾"];
 
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
