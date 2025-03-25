@@ -90,6 +90,7 @@ function initApp() {
     }
 
     window.playScratchCard = playScratchCard;
+    window.fetchBalance = fetchBalance;
 }
 
 initApp();
