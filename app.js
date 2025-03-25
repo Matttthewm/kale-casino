@@ -109,7 +109,7 @@ function initApp() {
             if (data.status === "success") {
                 if (data.amount > 0) {
                     playerBalance += data.amount;
-                    updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
+                    updateDialogue(`🏆 You Won ${data.amount} FARMER!`, dialogueId);
                 } else if (gameType === "Slots") {
                     updateDialogue("✗ You Lose! Try Again!", dialogueId);
                 } else {
@@ -263,7 +263,7 @@ function initApp() {
     async function playMonte(cost, numCards, multiplier) {
         const gameId = Math.floor(100000 + Math.random() * 900000).toString();
         showScreen("monte");
-        const monteGame = document.getElementById("monteGame");
+        const monteGame = document.get shElementById("monteGame");
         monteGame.classList.remove("hidden");
         monteGame.classList.add(`grid-${numCards}`);
         const cards = ["🥬", ...Array(numCards - 1).fill("🌱")];
