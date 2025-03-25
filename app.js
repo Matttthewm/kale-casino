@@ -109,7 +109,7 @@ function initApp() {
             if (data.status === "success") {
                 if (data.amount > 0) {
                     playerBalance += data.amount;
-                    updateDialogue(`🏆 You Won ${data.amount} FARMER!`, dialogueId);
+                    updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
                 } else if (gameType === "Slots") {
                     updateDialogue("✗ You Lose! Try Again!", dialogueId);
                 } else {
@@ -168,11 +168,11 @@ function initApp() {
         const hiddenLayout = Array(seedlings).fill().map(() => {
             const rand = Math.random();
             if (cost === 10) {
-                return rand < 0.1 ? "🥬" : rand < 0.15 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                return rand < 0.02 ? "🥬" : rand < 0.03 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
             } else if (cost === 100) {
-                return rand < 0.2 ? "🥬" : rand < 0.25 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                return rand < 0.05 ? "🥬" : rand < 0.07 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
             } else {
-                return rand < 0.3 ? "🥬" : rand < 0.35 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                return rand < 0.08 ? "🥬" : rand < 0.10 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
             }
         });
         let displayLayout = Array(seedlings).fill("🌱");
@@ -224,11 +224,11 @@ function initApp() {
             let finalReels = Array(reels).fill().map(() => {
                 const rand = Math.random();
                 if (cost === 10) {
-                    return rand < 0.1 ? "🥬" : rand < 0.15 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                    return rand < 0.02 ? "🥬" : rand < 0.03 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
                 } else if (cost === 100) {
-                    return rand < 0.2 ? "🥬" : rand < 0.25 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                    return rand < 0.05 ? "🥬" : rand < 0.07 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
                 } else {
-                    return rand < 0.3 ? "🥬" : rand < 0.35 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+                    return rand < 0.08 ? "🥬" : rand < 0.10 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
                 }
             });
             for (let i = 0; i < 5; i++) {
