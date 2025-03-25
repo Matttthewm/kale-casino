@@ -17,12 +17,14 @@ function initApp() {
         updateBalanceDisplay();
     }
 
-    function checkScratchWin(hiddenLayout) {
-        const winningSymbol = "🥬";
-        const farmerSymbol = "👩‍🌾";
-        const kaleCount = hiddenLayout.filter(symbol => symbol === winningSymbol).length;
-        const farmerCount = hiddenLayout.filter(symbol => symbol === farmerSymbol).length;
-        return kaleCount >= 2 || farmerCount > 0;
+    function calculateScratchWinnings(hiddenLayout) {
+        const kaleValue = 100;
+        const farmerValue = 200;
+        const kaleCount = hiddenLayout.filter(symbol => symbol === "🥬").length;
+        const farmerCount = hiddenLayout.filter(symbol => symbol === "👩‍🌾").length;
+        const baseWinnings = (kaleCount * kaleValue) + (farmerCount * farmerValue);
+        const multiplier = kaleCount + farmerCount;
+        return baseWinnings * multiplier;
     }
 
     async function playScratchCard(cost, seedlings) {
@@ -57,8 +59,8 @@ function initApp() {
                     spot.classList.add("revealed");
                     if (choices.length === seedlings) {
                         if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
-                            const isWin = checkScratchWin(hiddenLayout);
-                            await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue", isWin);
+                            const winnings = calculateScratchWinnings(hiddenLayout);
+                            await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue", winnings);
                         }
                     }
                 }
@@ -67,17 +69,17 @@ function initApp() {
         });
     }
 
-    async function addWinnings(gameId, cost, gameType, choices, dialogueId, isWin) {
+    async function addWinnings(gameId, cost, gameType, choices, dialogueId, winnings) {
         try {
             const response = await fetch(`${BANK_API_URL}/payout`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ game_id: gameId, cost, destination: playerKeypair.publicKey(), game_type: gameType, choices, is_win: isWin })
+                body: JSON.stringify({ game_id: gameId, cost, destination: playerKeypair.publicKey(), game_type: gameType, choices, winnings })
             });
             const data = await response.json();
-            if (data.status === "success" && isWin) {
-                playerBalance += data.amount;
-                updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
+            if (data.status === "success" && winnings > 0) {
+                playerBalance += winnings;
+                updateDialogue(`🏆 You Won ${winnings} KALE!`, dialogueId);
             } else {
                 updateDialogue("✗ You Lose! Try Again!", dialogueId);
             }
