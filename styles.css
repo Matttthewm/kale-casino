@@ -99,7 +99,7 @@ input {
 
 .game {
     margin-top: 20px;
-    font-size: 3em;
+    font-size: 2em;
     display: grid;
     gap: 15px;
 }
@@ -108,6 +108,7 @@ input {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 2em;
 }
 
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
@@ -118,15 +119,15 @@ input {
 .grid-5 { grid-template-columns: repeat(5, 1fr); }
 
 .scratch-spot, .monte-card {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: #ddd;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 3em;
+    font-size: 2em;
     transition: background-color 0.3s;
 }
 
