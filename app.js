@@ -89,4 +89,92 @@ function initApp() {
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
         showLoading();
         try {
-            const signatureResponse = await fetch(`${BANK_
+            const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ game_id: gameId, cost })
+            });
+            if (!signatureResponse.ok) throw new Error("Failed to fetch signature");
+            const { signature } = await signatureResponse.json();
+
+            const response = await fetch(`${BANK_API_URL}/payout`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
+            });
+            if (!response.ok) throw new Error("Payout request failed");
+            const data = await response.json();
+
+            if (data.status === "success") {
+                if (data.amount > 0) {
+                    playerBalance += data.amount;
+                    updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
+                } else {
+                    updateDialogue("✗ You Lose! Try Again!", dialogueId);
+                }
+                updateBalanceDisplay();
+            } else {
+                updateDialogue("✗ Bank error.", dialogueId);
+            }
+        } catch (error) {
+            updateDialogue(`✗ Error processing winnings: ${error.message}`, dialogueId);
+        }
+        hideLoading();
+        return true;
+    }
+
+    function login() {
+        const secret = document.getElementById("secretKey").value;
+        try {
+            playerKeypair = StellarSdk.Keypair.fromSecret(secret);
+            ensureTrustline().then(() => {
+                fetchBalance().then(() => {
+                    updateDialogue(`✓ Logged in as ${playerKeypair.publicKey}`);
+                    showScreen("menu");
+                });
+            }).catch(e => updateDialogue(`✗ Error: ${e}`));
+        } catch (e) {
+            updateDialogue("✗ Invalid secret key!");
+        }
+    }
+
+    function logout() {
+        playerKeypair = null;
+        updateDialogue(`✓ Thanks for playing! Final balance: ${playerBalance} KALE`);
+        showScreen("splash");
+        setTimeout(() => showScreen("login"), 2000);
+    }
+
+    function backToMenu() {
+        showScreen("menu");
+    }
+
+    function buyScratchCard(cost, seedlings) {
+        if (playerBalance < cost) {
+            updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "scratchDialogue");
+            return;
+        }
+        playScratchCard(cost, seedlings);
+    }
+
+    async function playScratchCard(cost, seedlings) {
+        const gameId = Math.floor(100000 + Math.random() * 900000).toString();
+        showScreen("scratch");
+        const scratchCard = document.getElementById("scratchCard");
+        scratchCard.classList.remove("hidden");
+        const hiddenLayout = Array(seedlings).fill().map(() => {
+            const rand = Math.random();
+            if (cost === 10) {
+                return rand < 0.02 ? "🥬" : rand < 0.03 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+            } else if (cost === 100) {
+                return rand < 0.05 ? "🥬" : rand < 0.07 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+            } else {
+                return rand < 0.08 ? "🥬" : rand < 0.10 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
+            }
+        });
+        let displayLayout = Array(seedlings).fill("🌱");
+        const choices = [];
+        renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost);
+    }
+
+    function renderScratchCard(displayLayout, seedlings, hidden
