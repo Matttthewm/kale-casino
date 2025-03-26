@@ -179,31 +179,33 @@ function initApp() {
         renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost);
     }
 
-    function renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost) {
-        const scratchCard = document.getElementById("scratchCard");
-        scratchCard.innerHTML = "";
-        scratchCard.classList.add(`grid-${seedlings}`);
-        displayLayout.forEach((item, index) => {
-            const spot = document.createElement("div");
-            spot.classList.add("scratch-spot");
-            spot.textContent = item;
-            spot.onclick = async () => {
-                if (!choices.includes(index + 1)) {
-                    choices.push(index + 1);
-                    displayLayout[index] = hiddenLayout[index];
-                    spot.textContent = hiddenLayout[index];
-                    spot.classList.add("revealed");
-                    if (choices.length === seedlings) {
-                        if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
-                            await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
-                            setTimeout(() => scratchCard.classList.add("hidden"), 2000);
-                        }
+function renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost) {
+    const scratchCard = document.getElementById("scratchCard");
+    scratchCard.innerHTML = "";
+    scratchCard.classList.add(`grid-${seedlings}`);
+    let winningsCalled = false; // Add this line
+    displayLayout.forEach((item, index) => {
+        const spot = document.createElement("div");
+        spot.classList.add("scratch-spot");
+        spot.textContent = item;
+        spot.onclick = async () => {
+            if (!choices.includes(index + 1)) {
+                choices.push(index + 1);
+                displayLayout[index] = hiddenLayout[index];
+                spot.textContent = hiddenLayout[index];
+                spot.classList.add("revealed");
+                if (choices.length === seedlings && winningsCalled === false) { //Modify this line
+                    winningsCalled = true; //Modify this line
+                    if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
+                        await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
+                        setTimeout(() => scratchCard.classList.add("hidden"), 2000);
                     }
                 }
-            };
-            scratchCard.appendChild(spot);
-        });
-    }
+            }
+        };
+        scratchCard.appendChild(spot);
+    });
+}
 
     function buySlots(cost, reels) {
         if (playerBalance < cost) {
