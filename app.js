@@ -87,41 +87,43 @@ function initApp() {
     }
 
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
-        showLoading();
-        try {
-            const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ game_id: gameId, cost })
-            });
-            if (!signatureResponse.ok) throw new Error("Failed to fetch signature");
-            const { signature } = await signatureResponse.json();
-            
-            const response = await fetch(`${BANK_API_URL}/payout`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
-            });
-            if (!response.ok) throw new Error("Payout request failed");
-            const data = await response.json();
-            
-            if (data.status === "success") {
-                if (data.amount > 0) {
-                    playerBalance += data.amount;
-                    updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
-                } else {
-                    updateDialogue("✗ You Lose! Try Again!", dialogueId);
-                }
-                updateBalanceDisplay();
+    showLoading();
+    try {
+        const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_id: gameId, cost })
+        });
+        if (!signatureResponse.ok) throw new Error("Failed to fetch signature");
+        const { signature } = await signatureResponse.json();
+
+        const response = await fetch(`${BANK_API_URL}/payout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
+        });
+        if (!response.ok) throw new Error("Payout request failed");
+        const data = await response.json();
+
+        console.log("Payout data:", data); // Log the entire data object
+        if (data.status === "success") {
+            if (data.amount > 0) {
+                console.log("Winnings amount from backend:", data.amount); //Log the amount.
+                playerBalance += data.amount;
+                updateDialogue(`🏆 You Won ${data.amount} KALE!`, dialogueId);
             } else {
-                updateDialogue("✗ Bank error.", dialogueId);
+                updateDialogue("✗ You Lose! Try Again!", dialogueId);
             }
-        } catch (error) {
-            updateDialogue(`✗ Error processing winnings: ${error.message}`, dialogueId);
+            updateBalanceDisplay();
+        } else {
+            updateDialogue("✗ Bank error.", dialogueId);
         }
-        hideLoading();
-        return true;
+    } catch (error) {
+        updateDialogue(`✗ Error processing winnings: ${error.message}`, dialogueId);
     }
+    hideLoading();
+    return true;
+}
 
     function login() {
         const secret = document.getElementById("secretKey").value;
