@@ -118,7 +118,7 @@ input {
 
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-9 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-.grid-12 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr); }
+.grid-12 { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); } /* Updated to 4 columns */
 .grid-6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-5 { grid-template-columns: repeat(5, 1fr); }
@@ -136,7 +136,11 @@ input {
     transition: background-color 0.3s;
 }
 
-.scratch-spot.revealed, .monte-card:hover {
+.scratch-spot.revealed {
+    background-color: #fff; /* Style for revealed spot */
+}
+
+.monte-card:hover {
     background-color: #fff;
 }
 
