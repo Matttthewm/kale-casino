@@ -1,8 +1,8 @@
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
-    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7"; 
-    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE"; 
+    const BANK_PUBLIC_KEY = "GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7";
+    const KALE_ISSUER = "GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE";
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     const BANK_API_URL = "https://kalecasino.pythonanywhere.com/";
@@ -129,6 +129,7 @@ function initApp() {
         const secret = document.getElementById("secretKey").value;
         try {
             playerKeypair = StellarSdk.Keypair.fromSecret(secret);
+            localStorage.setItem('publicKey', playerKeypair.publicKey()); // Store public key for payout
             ensureTrustline().then(() => {
                 fetchBalance().then(() => {
                     updateDialogue(`✓ Logged in as ${playerKeypair.publicKey}`);
@@ -142,6 +143,7 @@ function initApp() {
 
     function logout() {
         playerKeypair = null;
+        localStorage.removeItem('publicKey');
         updateDialogue(`✓ Thanks for playing! Final balance: ${playerBalance} KALE`);
         showScreen("splash");
         setTimeout(() => showScreen("login"), 2000);
@@ -151,60 +153,71 @@ function initApp() {
         showScreen("menu");
     }
 
-    function buyScratchCard(cost, seedlings) {
+    function buyScratchCard(cost) {
         if (playerBalance < cost) {
             updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "scratchDialogue");
             return;
         }
-        playScratchCard(cost, seedlings);
+        startScratchGame(cost);
     }
 
-    async function playScratchCard(cost, seedlings) {
-        const gameId = Math.floor(100000 + Math.random() * 900000).toString();
+    async function startScratchGame(cost) {
+        const gameId = Date.now(); // Generate a unique game ID
         showScreen("scratch");
         const scratchCard = document.getElementById("scratchCard");
-        scratchCard.classList.remove("hidden");
-        const hiddenLayout = Array(seedlings).fill().map(() => {
-            const rand = Math.random();
-            if (cost === 10) {
-                return rand < 0.02 ? "🥬" : rand < 0.03 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
-            } else if (cost === 100) {
-                return rand < 0.05 ? "🥬" : rand < 0.07 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
-            } else {
-                return rand < 0.08 ? "🥬" : rand < 0.10 ? "👩‍🌾" : symbols[Math.floor(Math.random() * (symbols.length - 2))];
-            }
-        });
-        let displayLayout = Array(seedlings).fill("🌱");
-        const choices = [];
-        renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost);
-    }
-
-    function renderScratchCard(displayLayout, seedlings, hiddenLayout, choices, gameId, cost) {
-        const scratchCard = document.getElementById("scratchCard");
         scratchCard.innerHTML = "";
-        scratchCard.classList.add(`grid-${seedlings}`);
+        scratchCard.classList.remove("hidden");
+        const seedlings = { 10: 3, 100: 9, 1000: 12}[cost];
+        const choices = [];
+        const displayLayout = Array(seedlings).fill("🌱");
         let winningsCalled = false;
-        displayLayout.forEach((item, index) => {
+        scratchCard.classList.add(`grid-${seedlings}`);
+
+        for (let i = 0; i < seedlings; i++) {
             const spot = document.createElement("div");
             spot.classList.add("scratch-spot");
-            spot.textContent = item;
+            spot.textContent = "?";
+            scratchCard.appendChild(spot);
+
             spot.onclick = async () => {
-                if (!choices.includes(index + 1)) {
-                    choices.push(index + 1);
-                    displayLayout[index] = hiddenLayout[index];
-                    spot.textContent = hiddenLayout[index];
-                    spot.classList.add("revealed");
-                    if (choices.length === seedlings && !winningsCalled) {
-                        winningsCalled = true;
-                        if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
-                            await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
-                            setTimeout(() => scratchCard.classList.add("hidden"), 2000);
+                if (!choices.includes(i + 1)) {
+                    choices.push(i + 1);
+                    spot.textContent = "Revealing..."; // Indicate loading
+
+                    try {
+                        const response = await fetch(`${BANK_API_URL}/reveal_spot`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ gameId: gameId, index: i }), // Send 0-based index
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            const symbol = data.symbol;
+                            displayLayout[i] = symbol;
+                            spot.textContent = symbol;
+                            spot.classList.add("revealed");
+
+                            if (choices.length === seedlings && !winningsCalled) {
+                                winningsCalled = true;
+                                if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
+                                    await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
+                                    setTimeout(() => scratchCard.classList.add("hidden"), 2000);
+                                }
+                            }
+                        } else {
+                            console.error("Error revealing spot:", response.status);
+                            spot.textContent = "Error";
                         }
+                    } catch (error) {
+                        console.error("Error revealing spot:", error);
+                        spot.textContent = "Error";
                     }
                 }
             };
-            scratchCard.appendChild(spot);
-        });
+        }
     }
 
     function buySlots(cost, reels) {
@@ -293,8 +306,8 @@ function initApp() {
                     monteGame.innerHTML = cards.map(c => `<span>${c}</span>`).join(" ");
                     if (await deductKale(cost, `Monte ${gameId}`, "monteDialogue")) {
                         await addWinnings(gameId, cost, "Monte", [index + 1], "monteDialogue");
-                        updateDialogue(index + 1 === kalePos ? 
-                            `✓ You found the kale at position ${kalePos}!` : 
+                        updateDialogue(index + 1 === kalePos ?
+                            `✓ You found the kale at position ${kalePos}!` :
                             `✗ The kale was at position ${kalePos}. You lose!`, "monteDialogue");
                         setTimeout(() => monteGame.classList.add("hidden"), 2000);
                     }
