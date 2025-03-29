@@ -1,5 +1,3 @@
-// app.js
-
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -40,6 +38,9 @@ function initApp() {
                 break;
             case 'monte':
                 document.body.classList.add('bg-monte');
+                break;
+            case 'farmersClub':
+                document.body.classList.add('bg-farmers-club'); // Add background for farmers club if you want
                 break;
             default:
                 document.body.classList.add('bg-splash');
@@ -406,6 +407,7 @@ function initApp() {
     function showScratchOffs() { showScreen("scratch"); }
     function showSlots() { showScreen("slots"); }
     function showMonte() { showScreen("monte"); }
+    function showFarmersClub() { showScreen("farmersClub"); }
 
     setTimeout(() => showScreen("login"), 2000);
     updateBackground("splash"); // Set initial background
@@ -419,6 +421,7 @@ function initApp() {
     window.showScratchOffs = showScratchOffs;
     window.showSlots = showSlots;
     window.showMonte = showMonte;
+    window.showFarmersClub = showFarmersClub;
 }
 
 initApp();
