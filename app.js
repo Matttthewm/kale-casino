@@ -23,6 +23,28 @@ function initApp() {
         } else {
             document.getElementById("balanceBar").classList.add("hidden");
         }
+        updateBackground(screenId);
+    }
+
+    function updateBackground(screenId) {
+        document.body.className = ''; // Clear existing background classes
+        switch (screenId) {
+            case 'menu':
+                document.body.classList.add('bg-menu');
+                break;
+            case 'scratch':
+                document.body.classList.add('bg-scratch');
+                break;
+            case 'slots':
+                document.body.classList.add('bg-slots');
+                break;
+            case 'monte':
+                document.body.classList.add('bg-monte');
+                break;
+            default:
+                document.body.classList.add('bg-splash');
+                break;
+        }
     }
 
     function updateDialogue(message, dialogueId = "dialogue") {
@@ -30,12 +52,14 @@ function initApp() {
         if (dialogue) dialogue.innerHTML = message;
     }
 
-    function showLoading() {
+    function showLoading(message = "Loading...") {
         document.getElementById("loading").classList.remove("hidden");
+        document.getElementById("loadingText").textContent = message;
     }
 
     function hideLoading() {
         document.getElementById("loading").classList.add("hidden");
+        document.getElementById("loadingText").textContent = "";
     }
 
     function updateBalanceDisplay() {
@@ -43,7 +67,7 @@ function initApp() {
     }
 
     async function ensureTrustline() {
-        showLoading();
+        showLoading("Loading trustline...");
         const account = await server.loadAccount(playerKeypair.publicKey());
         if (!account.balances.some(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER)) {
             const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
@@ -59,7 +83,7 @@ function initApp() {
     }
 
     async function fetchBalance() {
-        showLoading();
+        showLoading("Loading balance...");
         const account = await server.loadAccount(playerKeypair.publicKey());
         const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
         playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
@@ -68,7 +92,7 @@ function initApp() {
     }
 
     async function deductKale(amount, memo, dialogueId) {
-        showLoading();
+        showLoading("Processing payment...");
         const account = await server.loadAccount(playerKeypair.publicKey());
         const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
             .addOperation(StellarSdk.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
@@ -89,7 +113,7 @@ function initApp() {
     }
 
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
-        showLoading();
+        showLoading("Processing prize...");
         try {
             const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
                 method: "POST",
@@ -163,6 +187,7 @@ function initApp() {
 
         if (await deductKale(cost, `Buy Scratch Card`, "scratchDialogue")) { // Deduct cost upfront
             try {
+                showLoading("Loading game...");
                 const response = await fetch(`${BANK_API_URL}/init_scratch_game`, {
                     method: 'POST',
                     headers: {
@@ -181,10 +206,12 @@ function initApp() {
                     // Potentially refund the deducted KALE if initialization fails
                     fetchBalance(); // Update balance in case of failure
                 }
+                hideLoading();
             } catch (error) {
                 updateDialogue(`✗ Error starting scratch game: ${error.message}`, "scratchDialogue");
                 // Potentially refund the deducted KALE if initialization fails
                 fetchBalance(); // Update balance in case of failure
+                hideLoading();
             }
         }
     }
@@ -202,14 +229,13 @@ function initApp() {
         for (let i = 0; i < seedlings; i++) {
             const spot = document.createElement("div");
             spot.classList.add("scratch-spot");
-            spot.textContent = "?";
+            spot.textContent = "🌱"; // Initial text as seedling
             scratchCard.appendChild(spot);
 
             spot.onclick = async () => {
                 if (!choices.includes(i + 1)) {
                     choices.push(i + 1);
-                    spot.textContent = "Revealing..."; // Indicate loading
-
+                    spot.textContent = "Revealing..."; // Keep this for a very brief moment if needed
                     try {
                         const response = await fetch(`${BANK_API_URL}/reveal_spot`, {
                             method: 'POST',
@@ -223,7 +249,7 @@ function initApp() {
                             const data = await response.json();
                             const symbol = data.symbol;
                             displayLayout[i] = symbol;
-                            spot.textContent = symbol;
+                            spot.textContent = symbol; // Set revealed symbol
                             spot.classList.add("revealed");
 
                             if (choices.length === seedlings && !winningsCalled) {
@@ -242,6 +268,9 @@ function initApp() {
                 }
             };
         }
+        // For initial display, set all to seedling
+        const initialSpots = scratchCard.querySelectorAll('.scratch-spot');
+        initialSpots.forEach(spot => spot.textContent = '🌱');
     }
 
     function buySlots(cost, reels) {
@@ -353,6 +382,7 @@ function initApp() {
     function showMonte() { showScreen("monte"); }
 
     setTimeout(() => showScreen("login"), 2000);
+    updateBackground("splash"); // Set initial background
 
     window.login = login;
     window.logout = logout;
