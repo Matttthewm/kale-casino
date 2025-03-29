@@ -208,3 +208,13 @@ input {
     color: #333;
     min-height: 2em;
 }
+
+.coming-soon {
+    background-color: #999; /* Grayed out color */
+    cursor: not-allowed; /* Indicate it's not clickable */
+    color: #ddd;
+}
+
+.coming-soon:hover {
+    background-color: #999; /* Keep the gray color on hover */
+}
