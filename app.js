@@ -39,8 +39,8 @@ function initApp() {
             case 'monte':
                 document.body.classList.add('bg-monte');
                 break;
-            case 'farmersClub':
-                document.body.classList.add('bg-farmers-club'); // Add background for farmers club if you want
+            case 'donation':
+                document.body.classList.add('bg-donation'); // Or whatever class you want
                 break;
             default:
                 document.body.classList.add('bg-splash');
@@ -407,7 +407,7 @@ function initApp() {
     function showScratchOffs() { showScreen("scratch"); }
     function showSlots() { showScreen("slots"); }
     function showMonte() { showScreen("monte"); }
-    function showFarmersClub() { showScreen("farmersClub"); }
+    function showDonation() { showScreen("donation"); }
 
     setTimeout(() => showScreen("login"), 2000);
     updateBackground("splash"); // Set initial background
@@ -421,7 +421,7 @@ function initApp() {
     window.showScratchOffs = showScratchOffs;
     window.showSlots = showSlots;
     window.showMonte = showMonte;
-    window.showFarmersClub = showFarmersClub;
+    window.showDonation = showDonation;
 }
 
 initApp();
