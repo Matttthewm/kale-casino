@@ -20,8 +20,8 @@ body::before {
     width: 100%;
     height: 100%;
     z-index: -1;
-    opacity: 0.6; /* Increased opacity for better visibility */
-    font-size: 15em; /* Significantly increased font size for xxxl emojis */
+    opacity: 0.5; /* Adjust opacity as needed */
+    font-size: 30em; /* Even larger font size for xxxxl emojis */
     pointer-events: none;
     display: flex;
     justify-content: center;
