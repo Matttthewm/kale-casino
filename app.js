@@ -1,3 +1,5 @@
+// app.js
+
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -153,21 +155,45 @@ function initApp() {
         showScreen("menu");
     }
 
-    function buyScratchCard(cost) {
+    async function buyScratchCard(cost) {
         if (playerBalance < cost) {
             updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "scratchDialogue");
             return;
         }
-        startScratchGame(cost);
+
+        if (await deductKale(cost, `Buy Scratch Card`, "scratchDialogue")) { // Deduct cost upfront
+            try {
+                const response = await fetch(`${BANK_API_URL}/init_scratch_game`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ cost: cost }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const gameId = data.gameId;
+                    const seedlings = { 10: 3, 100: 9, 1000: 12}[cost]; // Get seedlings here as well if needed
+                    startScratchGame(cost, gameId, seedlings); // Pass gameId to startScratchGame
+                } else {
+                    updateDialogue("✗ Failed to start scratch game.", "scratchDialogue");
+                    // Potentially refund the deducted KALE if initialization fails
+                    fetchBalance(); // Update balance in case of failure
+                }
+            } catch (error) {
+                updateDialogue(`✗ Error starting scratch game: ${error.message}`, "scratchDialogue");
+                // Potentially refund the deducted KALE if initialization fails
+                fetchBalance(); // Update balance in case of failure
+            }
+        }
     }
 
-    async function startScratchGame(cost) {
-        const gameId = Date.now(); // Generate a unique game ID
+    async function startScratchGame(cost, gameId, seedlings) {
         showScreen("scratch");
         const scratchCard = document.getElementById("scratchCard");
         scratchCard.innerHTML = "";
         scratchCard.classList.remove("hidden");
-        const seedlings = { 10: 3, 100: 9, 1000: 12}[cost];
         const choices = [];
         const displayLayout = Array(seedlings).fill("🌱");
         let winningsCalled = false;
@@ -202,10 +228,8 @@ function initApp() {
 
                             if (choices.length === seedlings && !winningsCalled) {
                                 winningsCalled = true;
-                                if (await deductKale(cost, `Scratch ${gameId}`, "scratchDialogue")) {
-                                    await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
-                                    setTimeout(() => scratchCard.classList.add("hidden"), 2000);
-                                }
+                                await addWinnings(gameId, cost, "Scratch", choices, "scratchDialogue");
+                                setTimeout(() => scratchCard.classList.add("hidden"), 2000);
                             }
                         } else {
                             console.error("Error revealing spot:", response.status);
