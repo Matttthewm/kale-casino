@@ -29,7 +29,7 @@
             <button onclick="showSlots()">2. Slots</button>
             <button onclick="showMonte()">3. Monte</button>
             <button class="coming-soon" disabled>4. Lottery (Coming Soon)</button>
-            <button onclick="showFarmersClub()">5. Farmer's Club</button>
+            <button onclick="showDonation()">5. Donation</button>
             <button onclick="logout()">6. Exit</button>
             <div id="dialogue" class="dialogue"></div>
         </div>
@@ -60,10 +60,33 @@
             <div id="monteGame" class="game hidden"></div>
             <div id="monteDialogue" class="dialogue"></div>
         </div>
-        <div id="farmersClub" class="screen hidden">
-            <h1>🧑‍🌾 Kale Farmer's Club 🧑‍🌾</h1>
+        <div id="donation" class="screen hidden">
+            <h1>💖 Support Kale Casino! 💖</h1>
+            <p>
+                <button onclick="window.open('https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION', '_blank')" style="font-size: 1.2em; padding: 10px 20px; cursor: pointer;">
+                    Donate here for a Kale Casino Donation nft!
+                </button>
+            </p>
+            <p>
+                <a href="https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION" target="_blank">
+                    <img src="https://i.imgur.com/SqofyMR.gif" alt="Kale Casino Donation NFT" style="width: 80%; max-width: 600px;">
+                </a>
+            </p>
+            <p>
+                All proceeds from NFT sale donations will be added back to
+                <button onclick="window.open('https://stellar.expert/explorer/public/account/GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
+                    the Kale Casino bank
+                </button>
+            </p>
+            <p>
+                The Kale Casino is a fun experimental project by
+                <button onclick="window.open('http://github.com/Matttthewm/', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
+                    @Matttthewm
+                </button>.
+                Please note this games suite is experimental and I am not responsible for any loss of funds.
+            </p>
             <button onclick="backToMenu()">Back to Menu</button>
-            <div id="farmersClubDialogue" class="dialogue"></div>
+            <div id="donationDialogue" class="dialogue"></div>
         </div>
     </div>
     <script src="app.js"></script>
