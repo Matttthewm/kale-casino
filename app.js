@@ -6,10 +6,55 @@ function initApp() {
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     const BANK_API_URL = "https://kalecasino.pythonanywhere.com";
-    let playerKeypair = null;
+    let playerPublicKey = localStorage.getItem('publicKey');
     let playerBalance = 0;
+    let walletsKit = null;
 
     const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
+
+    async function initializeWalletKit() {
+        walletsKit = new StellarSdk.WalletsKit({
+            network: 'public', // Or 'testnet' if you were using that
+            // Add other configurations if needed
+        });
+
+        await walletsKit.createButton({
+            container: document.getElementById('walletButtonContainer'),
+            onConnect: async ({ publicKey }) => {
+                console.log('Wallet Connected:', publicKey);
+                playerPublicKey = publicKey;
+                localStorage.setItem('publicKey', publicKey);
+                await ensureTrustline();
+                await fetchBalance();
+                updateDialogue(`✓ Wallet Connected: ${publicKey}`, "loginDialogue");
+                showScreen("menu");
+            },
+            onDisconnect: () => {
+                console.log('Wallet Disconnected');
+                playerPublicKey = null;
+                localStorage.removeItem('publicKey');
+                updateDialogue("✓ Wallet Disconnected. Please connect again to play.", "loginDialogue");
+                showScreen("login");
+            },
+            buttonText: playerPublicKey ? 'Disconnect Wallet' : 'Connect Wallet',
+        });
+
+        if (playerPublicKey) {
+            // Try to reconnect if public key is in local storage
+            try {
+                await walletsKit.connectWithPublicKey(playerPublicKey);
+                await ensureTrustline();
+                await fetchBalance();
+                showScreen("menu");
+            } catch (error) {
+                console.error("Error reconnecting wallet:", error);
+                updateDialogue("✗ Error reconnecting wallet. Please connect again.", "loginDialogue");
+                showScreen("login");
+            }
+        } else {
+            showScreen("login");
+        }
+    }
 
     function showScreen(screenId) {
         document.querySelectorAll(".screen").forEach(screen => screen.classList.add("hidden"));
@@ -68,16 +113,20 @@ function initApp() {
     }
 
     async function ensureTrustline() {
+        if (!playerPublicKey) {
+            updateDialogue("✗ Wallet not connected.", "dialogue");
+            return false;
+        }
         showLoading("Loading Trustline...");
         try {
-            const account = await server.loadAccount(playerKeypair.publicKey());
+            const account = await server.loadAccount(playerPublicKey);
             if (!account.balances.some(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER)) {
                 const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
                     .addOperation(StellarSdk.Operation.changeTrust({ asset: kale_asset }))
                     .setTimeout(30)
                     .build();
-                transaction.sign(playerKeypair);
-                await server.submitTransaction(transaction);
+                const signedTx = await walletsKit.signTransaction(transaction);
+                await server.submitTransaction(signedTx);
                 updateDialogue("✓ Trustline for KALE established.");
             }
         } catch (e) {
@@ -89,9 +138,13 @@ function initApp() {
     }
 
     async function fetchBalance() {
+        if (!playerPublicKey) {
+            updateDialogue("✗ Wallet not connected.", "dialogue");
+            return;
+        }
         showLoading("Loading Balance...");
         try {
-            const account = await server.loadAccount(playerKeypair.publicKey());
+            const account = await server.loadAccount(playerPublicKey);
             const kaleBalance = account.balances.find(b => b.asset_code === KALE_ASSET_CODE && b.asset_issuer === KALE_ISSUER);
             playerBalance = kaleBalance ? parseFloat(kaleBalance.balance) : 0;
             updateBalanceDisplay();
@@ -103,16 +156,20 @@ function initApp() {
     }
 
     async function deductKale(amount, memo, dialogueId) {
+        if (!playerPublicKey) {
+            updateDialogue("✗ Wallet not connected.", dialogueId);
+            return false;
+        }
         showLoading("Processing Payment...");
         try {
-            const account = await server.loadAccount(playerKeypair.publicKey());
+            const account = await server.loadAccount(playerPublicKey);
             const transaction = new StellarSdk.TransactionBuilder(account, { fee: await server.fetchBaseFee(), networkPassphrase: NETWORK_PASSPHRASE })
                 .addOperation(StellarSdk.Operation.payment({ destination: BANK_PUBLIC_KEY, asset: kale_asset, amount: amount.toString() }))
                 .addMemo(StellarSdk.Memo.text(memo.slice(0, 28)))
                 .setTimeout(30)
                 .build();
-            transaction.sign(playerKeypair);
-            const response = await server.submitTransaction(transaction);
+            const signedTx = await walletsKit.signTransaction(transaction);
+            const response = await server.submitTransaction(signedTx);
             if (response.successful) {
                 playerBalance -= amount;
                 updateDialogue(`✓ ${amount} KALE deducted for game.`, dialogueId);
@@ -131,6 +188,10 @@ function initApp() {
     }
 
     async function addWinnings(gameId, cost, gameType, choices, dialogueId) {
+        if (!playerPublicKey) {
+            updateDialogue("✗ Wallet not connected.", dialogueId);
+            return false;
+        }
         showLoading("Processing Prize...");
         try {
             const signatureResponse = await fetch(`${BANK_API_URL}/sign_game`, {
@@ -144,7 +205,7 @@ function initApp() {
             const response = await fetch(`${BANK_API_URL}/payout`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerKeypair.publicKey(), game_type: gameType, choices })
+                body: JSON.stringify({ game_id: gameId, cost, signature, destination: playerPublicKey, game_type: gameType, choices })
             });
             if (!response.ok) throw new Error("Payout request failed");
             const data = await response.json();
@@ -170,28 +231,15 @@ function initApp() {
         return true;
     }
 
-    function login() {
-        const secret = document.getElementById("secretKey").value;
-        try {
-            playerKeypair = StellarSdk.Keypair.fromSecret(secret);
-            localStorage.setItem('publicKey', playerKeypair.publicKey()); // Store public key for payout
-            ensureTrustline().then(() => {
-                fetchBalance().then(() => {
-                    updateDialogue(`✓ Logged in as ${playerKeypair.publicKey}`);
-                    showScreen("menu");
-                });
-            }).catch(e => updateDialogue(`✗ Error: ${e}`));
-        } catch (e) {
-            updateDialogue("✗ Invalid secret key!");
+    async function logout() {
+        if (walletsKit) {
+            await walletsKit.disconnect();
         }
-    }
-
-    function logout() {
-        playerKeypair = null;
+        playerPublicKey = null;
         localStorage.removeItem('publicKey');
-        updateDialogue(`✓ Thanks for playing! Final balance: ${playerBalance} KALE`);
+        updateDialogue(`✓ Logged out. Final balance: ${playerBalance} KALE`);
         showScreen("splash");
-        setTimeout(() => showScreen("login"), 2000);
+        setTimeout(() => initializeWalletKit(), 2000);
     }
 
     function backToMenu() {
@@ -199,6 +247,11 @@ function initApp() {
     }
 
     async function buyScratchCard(cost) {
+        if (!playerPublicKey) {
+            updateDialogue(`✗ Connect wallet to play.`, "scratchDialogue");
+            showScreen("login");
+            return;
+        }
         if (playerBalance < cost) {
             updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "scratchDialogue");
             return;
@@ -292,7 +345,12 @@ function initApp() {
         initialSpots.forEach(spot => spot.textContent = '🌱');
     }
 
-    function buySlots(cost, reels) {
+    async function buySlots(cost, reels) {
+        if (!playerPublicKey) {
+            updateDialogue(`✗ Connect wallet to play.`, "slotsDialogue");
+            showScreen("login");
+            return;
+        }
         if (playerBalance < cost) {
             updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "slotsDialogue");
             return;
@@ -320,6 +378,7 @@ function initApp() {
                 if (finalReelsResponse.ok) {
                     const finalReelsData = await finalReelsResponse.json();
                     const finalReels = finalReelsData.result;
+                    console.log("Slots Backend Result:", finalReels); // Logging backend result
 
                     for (let i = 0; i < 5; i++) {
                         const tempReels = Array(reels).fill().map(() => symbols[Math.floor(Math.random() * symbols.length)]);
@@ -352,7 +411,12 @@ function initApp() {
         });
     }
 
-    function buyMonte(cost, cards, multiplier) {
+    async function buyMonte(cost, cards, multiplier) {
+        if (!playerPublicKey) {
+            updateDialogue(`✗ Connect wallet to play.`, "monteDialogue");
+            showScreen("login");
+            return;
+        }
         if (playerBalance < cost) {
             updateDialogue(`✗ Need ${cost} KALE, only have ${playerBalance}!`, "monteDialogue");
             return;
@@ -385,9 +449,11 @@ function initApp() {
                     monteGame.innerHTML = cards.map((c, i) => `<span class="${i === cards.indexOf("🥬") ? 'kale-card' : ''}">${c}</span>`).join(" ");
                     if (await deductKale(cost, `Monte ${gameId}`, "monteDialogue")) {
                         const choice = index + 1;
+                        const won = choice === kalePos;
+                        const winningsAmount = won ? cost * 2.5 : 0;
                         await addWinnings(gameId, cost, "Monte", [choice], "monteDialogue");
-                        updateDialogue(choice === kalePos ?
-                            `✓ You found the kale at position ${kalePos}!` :
+                        updateDialogue(won ?
+                            `✓ You found the kale at position ${kalePos}! You win ${winningsAmount} KALE!` :
                             `✗ The kale was at position ${kalePos}. You lose!`, "monteDialogue");
                         setTimeout(() => monteGame.classList.add("hidden"), 2000);
                     }
@@ -409,10 +475,9 @@ function initApp() {
     function showMonte() { showScreen("monte"); }
     function showDonation() { showScreen("donation"); }
 
-    setTimeout(() => showScreen("login"), 2000);
+    setTimeout(() => initializeWalletKit(), 2000);
     updateBackground("splash"); // Set initial background
 
-    window.login = login;
     window.logout = logout;
     window.backToMenu = backToMenu;
     window.buyScratchCard = buyScratchCard;
