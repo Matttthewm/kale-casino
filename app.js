@@ -1,5 +1,3 @@
-import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
-
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
