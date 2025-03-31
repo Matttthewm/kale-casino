@@ -1,5 +1,3 @@
-import '@creit.tech/stellar-wallets-kit';
-
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -11,7 +9,6 @@ function initApp() {
     let playerPublicKey = localStorage.getItem('publicKey');
     let playerBalance = 0;
     let walletsKit = null;
-    console.log(window);
 
     const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
