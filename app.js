@@ -11,6 +11,7 @@ function initApp() {
     let playerPublicKey = localStorage.getItem('publicKey');
     let playerBalance = 0;
     let walletsKit = null;
+    console.log(window);
 
     const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
