@@ -1,5 +1,3 @@
-import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
-
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -15,8 +13,8 @@ function initApp() {
     const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
     async function initializeWalletKit() {
-        console.log("Initializing StellarWalletsKit...");
-        walletsKit = new StellarWalletsKit({
+        console.log("window.StellarWalletsKit:", window.StellarWalletsKit);
+        walletsKit = new window.StellarWalletsKit({
             network: 'public', // Or 'testnet' if you were using that
             // Add other configurations if needed
         });
