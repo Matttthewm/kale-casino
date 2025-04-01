@@ -13,6 +13,7 @@ function initApp() {
     const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
     async function initializeWalletKit() {
+        console.log("window.StellarWalletsKit:", window.StellarWalletsKit);
         walletsKit = new window['StellarWalletsKit']({
             network: 'public', // Or 'testnet' if you were using that
             // Add other configurations if needed
