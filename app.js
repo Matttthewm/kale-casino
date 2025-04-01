@@ -1,3 +1,5 @@
+import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
+
 function initApp() {
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
@@ -13,50 +15,48 @@ function initApp() {
     const symbols = ["🍅", "🥕", "🥒", "🥔", "🌽", "🥦", "🍆", "🍠", "🥬", "👩‍🌾"];
 
     async function initializeWalletKit() {
-        setTimeout(() => {
-            console.log("window.StellarWalletsKit (delayed):", window.StellarWalletsKit);
-            walletsKit = new window['StellarWalletsKit']({
-                network: 'public', // Or 'testnet' if you were using that
-                // Add other configurations if needed
-            });
+        console.log("Initializing StellarWalletsKit...");
+        walletsKit = new StellarWalletsKit({
+            network: 'public', // Or 'testnet' if you were using that
+            // Add other configurations if needed
+        });
 
-            walletsKit.createButton({
-                container: document.getElementById('walletButtonContainer'),
-                onConnect: async ({ publicKey }) => {
-                    console.log('Wallet Connected:', publicKey);
-                    playerPublicKey = publicKey;
-                    localStorage.setItem('publicKey', publicKey);
-                    await ensureTrustline();
-                    await fetchBalance();
-                    updateDialogue(`✓ Wallet Connected: ${publicKey}`, "loginDialogue");
-                    showScreen("menu");
-                },
-                onDisconnect: () => {
-                    console.log('Wallet Disconnected');
-                    playerPublicKey = null;
-                    localStorage.removeItem('publicKey');
-                    updateDialogue("✓ Wallet Disconnected. Please connect again to play.", "loginDialogue");
-                    showScreen("login");
-                },
-                buttonText: playerPublicKey ? 'Disconnect Wallet' : 'Connect Wallet',
-            });
+        walletsKit.createButton({
+            container: document.getElementById('walletButtonContainer'),
+            onConnect: async ({ publicKey }) => {
+                console.log('Wallet Connected:', publicKey);
+                playerPublicKey = publicKey;
+                localStorage.setItem('publicKey', publicKey);
+                await ensureTrustline();
+                await fetchBalance();
+                updateDialogue(`✓ Wallet Connected: ${publicKey}`, "loginDialogue");
+                showScreen("menu");
+            },
+            onDisconnect: () => {
+                console.log('Wallet Disconnected');
+                playerPublicKey = null;
+                localStorage.removeItem('publicKey');
+                updateDialogue("✓ Wallet Disconnected. Please connect again to play.", "loginDialogue");
+                showScreen("login");
+            },
+            buttonText: playerPublicKey ? 'Disconnect Wallet' : 'Connect Wallet',
+        });
 
-            if (playerPublicKey) {
-                // Try to reconnect if public key is in local storage
-                try {
-                    walletsKit.connectWithPublicKey(playerPublicKey);
-                    ensureTrustline();
-                    fetchBalance();
-                    showScreen("menu");
-                } catch (error) {
-                    console.error("Error reconnecting wallet:", error);
-                    updateDialogue("✗ Error reconnecting wallet. Please connect again.", "loginDialogue");
-                    showScreen("login");
-                }
-            } else {
+        if (playerPublicKey) {
+            // Try to reconnect if public key is in local storage
+            try {
+                await walletsKit.connectWithPublicKey(playerPublicKey);
+                await ensureTrustline();
+                await fetchBalance();
+                showScreen("menu");
+            } catch (error) {
+                console.error("Error reconnecting wallet:", error);
+                updateDialogue("✗ Error reconnecting wallet. Please connect again.", "loginDialogue");
                 showScreen("login");
             }
-        }, 500); // Delay of 500 milliseconds (0.5 seconds)
+        } else {
+            showScreen("login");
+        }
     }
 
     function showScreen(screenId) {
