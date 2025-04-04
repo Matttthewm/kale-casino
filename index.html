@@ -3,98 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kale Casino</title>
+    <title>🥬 Kale Casino 👩‍🌾</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/13.1.0/stellar-sdk.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.browser.min.js"></script>
 </head>
-<body>
-    <div id="splash" class="screen">
-        <h1>Welcome to Kale Casino!</h1>
-        <p>Loading...</p>
-    </div>
-
-    <div id="login" class="screen hidden">
-        <h1>Login</h1>
-        <div id="walletButtonContainer"></div>
-        <p id="loginDialogue"></p>
-    </div>
-
-    <div id="menu" class="screen hidden">
-        <div id="balanceBar" class="hidden">
-            Balance: <span id="balance">0.00</span> KALE
+<body class="bg-splash">
+    <div id="app" class="container">
+        <div id="balanceBar" class="balance-bar hidden">Balance: <span id="balance">0</span> KALE</div>
+        <div id="loading" class="loading hidden">
+            <div class="loading-bar"></div>
+            <div id="loadingText" class="loading-text"></div>
         </div>
-        <h1>Menu</h1>
-        <div class="button-grid">
-            <button onclick="showScratchOffs()">Scratch-Offs</button>
-            <button onclick="showSlots()">Slots</button>
-            <button onclick="showMonte()">Monte 3-Card</button>
-            <button onclick="showDonation()">Donation</button>
-            <button onclick="logout()">Logout</button>
+        <div id="splash" class="screen">
+            <h1>🥬🥬🥬 Welcome to Kale Casino! 🥬🥬🥬</h1>
+            <h2>🎰 Scratch! Spin! Win! 🎰</h2>
         </div>
-        <p id="dialogue"></p>
-    </div>
-
-    <div id="scratch" class="screen hidden">
-        <div id="balanceBar" class="hidden">
-            Balance: <span id="balance">0.00</span> KALE
+        <div id="login" class="screen hidden">
+            <h1>👩‍🌾 Enter Your Stellar Secret Key 👩‍🌾</h1>
+            <input type="text" id="secretKey" placeholder="Enter secret key">
+            <button onclick="login()">Login</button>
         </div>
-        <h1>Scratch-Offs</h1>
-        <div class="button-grid">
-            <button onclick="buyScratchCard(10)">10 KALE - Tiny Plot (3 spots)</button>
-            <button onclick="buyScratchCard(100)">100 KALE - Garden Bed (9 spots)</button>
-            <button onclick="buyScratchCard(1000)">1000 KALE - Farm Field (12 spots)</button>
+        <div id="menu" class="screen hidden">
+            <h2>🎲 Kale Casino Games 🎲</h2>
+            <button onclick="showScratchOffs()">1. Scratch-Off</button>
+            <button onclick="showSlots()">2. Slots</button>
+            <button onclick="showMonte()">3. Monte</button>
+            <button class="coming-soon" disabled>4. Lottery (Coming Soon)</button>
+            <button onclick="showDonation()">5. Donation</button>
+            <button onclick="logout()">6. Exit</button>
+            <div id="dialogue" class="dialogue"></div>
+        </div>
+        <div id="scratch" class="screen hidden">
+            <h1>🥬 Kale Casino Scratch-Off 🥬</h1>
+            <button onclick="buyScratchCard(10)">1. 10 KALE - Tiny Plot (3 spots)</button>
+            <button onclick="buyScratchCard(100)">2. 100 KALE - Garden Bed (9 spots)</button>
+            <button onclick="buyScratchCard(1000)">3. 1000 KALE - Farm Field (12 spots)</button>
+            <button onclick="backToMenu()">4. Back to Menu</button>
+            <div id="scratchCard" class="game hidden"></div>
+            <div id="scratchDialogue" class="dialogue"></div>
+        </div>
+        <div id="slots" class="screen hidden">
+            <h1>🥬 Kale Casino Slots 🥬</h1>
+            <button onclick="buySlots(10, 3)">1. 10 KALE - 3 Reels</button>
+            <button onclick="buySlots(100, 6)">2. 100 KALE - 6 Reels</button>
+            <button onclick="buySlots(1000, 9)">3. 1000 KALE - 9 Reels</button>
+            <button onclick="backToMenu()">4. Back to Menu</button>
+            <div id="slotsGame" class="game hidden"></div>
+            <div id="slotsDialogue" class="dialogue"></div>
+        </div>
+        <div id="monte" class="screen hidden">
+            <h1>🥬 Kale Casino Three Card Monte 🥬</h1>
+            <button onclick="buyMonte(10, 3, 5)">1. 10 KALE - 3 Cards</button>
+            <button onclick="buyMonte(100, 4, 10)">2. 100 KALE - 4 Cards</button>
+            <button onclick="buyMonte(1000, 5, 15)">3. 1000 KALE - 5 Cards</button>
+            <button onclick="backToMenu()">4. Back to Menu</button>
+            <div id="monteGame" class="game hidden"></div>
+            <div id="monteDialogue" class="dialogue"></div>
+        </div>
+        <div id="donation" class="screen hidden">
+            <h1>💖 Support Kale Casino! 💖</h1>
+            <p>
+                <button onclick="window.open('https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION', '_blank')" style="font-size: 1.2em; padding: 10px 20px; cursor: pointer;">
+                    Donate here for a Kale Casino Donation nft!
+                </button>
+            </p>
+            <p>
+                <a href="https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION" target="_blank">
+                    <img src="https://i.imgur.com/SqofyMR.gif" alt="Kale Casino Donation NFT" style="width: 80%; max-width: 600px;">
+                </a>
+            </p>
+            <p>
+                All proceeds from NFT sale donations will be added back to
+                <button onclick="window.open('https://stellar.expert/explorer/public/account/GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
+                    the Kale Casino bank
+                </button>
+            </p>
+            <p>
+                The Kale Casino is a fun experimental project by
+                <button onclick="window.open('http://github.com/Matttthewm/', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
+                    @Matttthewm
+                </button>.
+                Please note this games suite is experimental and I am not responsible for any loss of funds.
+            </p>
             <button onclick="backToMenu()">Back to Menu</button>
+            <div id="donationDialogue" class="dialogue"></div>
         </div>
-        <div id="scratchCard" class="hidden"></div>
-        <p id="scratchDialogue"></p>
     </div>
-
-    <div id="slots" class="screen hidden">
-        <div id="balanceBar" class="hidden">
-            Balance: <span id="balance">0.00</span> KALE
-        </div>
-        <h1>Slots</h1>
-        <div class="button-grid">
-            <button onclick="buySlots(10, 3)">10 KALE - 3 Reels</button>
-            <button onclick="buySlots(100, 6)">100 KALE - 6 Reels</button>
-            <button onclick="buySlots(1000, 9)">1000 KALE - 9 Reels</button>
-            <button onclick="backToMenu()">Back to Menu</button>
-        </div>
-        <div id="slotsGame" class="hidden"></div>
-        <p id="slotsDialogue"></p>
-    </div>
-
-    <div id="monte" class="screen hidden">
-        <div id="balanceBar" class="hidden">
-            Balance: <span id="balance">0.00</span> KALE
-        </div>
-        <h1>Monte 3-Card</h1>
-        <div class="button-grid">
-            <button onclick="buyMonte(10, 3, 1.5)">10 KALE - Easy</button>
-            <button onclick="buyMonte(100, 4, 1.5)">100 KALE - Medium</button>
-            <button onclick="buyMonte(1000, 5, 1.5)">1000 KALE - Hard</button>
-            <button onclick="backToMenu()">Back to Menu</button>
-        </div>
-        <div id="monteGame" class="hidden"></div>
-        <p id="monteDialogue"></p>
-    </div>
-
-    <div id="donation" class="screen hidden">
-        <div id="balanceBar" class="hidden">
-            Balance: <span id="balance">0.00</span> KALE
-        </div>
-        <h1>Donation</h1>
-        <p>Thank you for considering a donation!</p>
-        <button onclick="backToMenu()">Back to Menu</button>
-        <p id="donationDialogue"></p>
-    </div>
-
-    <div id="loading" class="hidden">
-        <div class="loading-spinner"></div>
-        <p id="loadingText">Loading...</p>
-    </div>
-
-    <script type="module" src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
