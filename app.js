@@ -1,4 +1,4 @@
-// app.js (Updated)
+// app.js (Updated: Improved error handling in requestPayout)
 
 function initApp() {
     // Ensure StellarSdk is loaded
@@ -15,7 +15,7 @@ function initApp() {
     const KALE_ASSET_CODE = "KALE";
     const kale_asset = new StellarSdk.Asset(KALE_ASSET_CODE, KALE_ISSUER);
     // Use HTTPS for secure communication with your backend
-    const BANK_API_URL = "https://kalecasino.pythonanywhere.com"; // Make sure this is HTTPS if possible
+    const BANK_API_URL = "https://kalecasino.pythonanywhere.com"; // Make sure this is HTTPS
 
     let playerKeypair = null;
     let playerBalance = 0;
@@ -232,58 +232,62 @@ function initApp() {
          }
     }
 
+    // *** MODIFIED requestPayout function ***
     async function requestPayout(gameId, cost, signature, gameType, choices) {
-         if (!gameId || !cost || !signature || !playerKeypair) return; // choices can be null/empty for scratch/slots
-         showLoading("Requesting Payout...");
-         updateDialogue("Checking results with the bank...", `${gameType}Dialogue`);
+        if (!gameId || !cost || !signature || !playerKeypair) return; // choices can be null/empty for scratch/slots
+        showLoading("Requesting Payout...");
+        // Update dialogue immediately before the async call
+        updateDialogue("Checking results with the bank...", `${gameType}Dialogue`);
 
-         try {
-             const response = await fetch(`${BANK_API_URL}/payout`, {
-                 method: "POST",
-                 headers: { "Content-Type": "application/json" },
-                 body: JSON.stringify({
-                     game_id: gameId,
-                     cost: cost,
-                     signature: signature,
-                     destination: playerKeypair.publicKey(), // Send player's public key
-                     game_type: gameType,
-                     choices: choices // Only relevant for Monte (player's guess)
-                 })
-             });
+        try {
+            const response = await fetch(`${BANK_API_URL}/payout`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    game_id: gameId,
+                    cost: cost,
+                    signature: signature,
+                    destination: playerKeypair.publicKey(), // Send player's public key
+                    game_type: gameType,
+                    choices: choices // Only relevant for Monte (player's guess)
+                })
+            });
 
-             if (!response.ok) {
-                 // Try to parse error response from backend for more specific message
-                 let errorJson;
-                 try { errorJson = await response.json(); } catch (e) { /* ignore parsing error */ }
-                 throw new Error(errorJson?.error || `Payout request failed: ${response.status}`);
-             }
+            if (!response.ok) {
+                let errorJson;
+                try { errorJson = await response.json(); } catch (e) { /* ignore parsing error */ }
+                // Throw an error with the message from the backend JSON or status code
+                throw new Error(errorJson?.error || `Payout request failed: ${response.status}`);
+            }
 
-             const data = await response.json();
-             console.log("Payout response:", data);
+            const data = await response.json();
+            console.log("Payout response:", data);
 
-             if (data.status === "success") {
-                 if (data.amount > 0) {
-                     updateDialogue(`🏆 You Won ${data.amount.toFixed(2)} KALE! Processing...`, `${gameType}Dialogue`);
-                     // Balance is updated server-side via payout tx, fetch new balance after a delay
-                     setTimeout(fetchBalance, 4000); // Wait a bit longer for tx to likely settle
-                 } else {
-                     updateDialogue("✗ You Lost! Better luck next time!", `${gameType}Dialogue`);
-                     // No balance change needed if lost, activeGame reset below
-                 }
-             } else {
-                 // Use the error message from the backend if available
-                 updateDialogue(`✗ Payout check failed: ${data.message || 'Bank error.'}`, `${gameType}Dialogue`);
-             }
-         } catch (error) {
-             // Catch errors thrown from fetch or !response.ok block
-             console.error("Error processing winnings:", error);
-             // Display the specific error message caught
-             updateDialogue(`✗ Error processing winnings: ${error.message}`, `${gameType}Dialogue`);
-         } finally {
-             hideLoading();
-             // Reset active game only after payout attempt is fully complete (success or fail)
-             activeGame = { id: null, cost: 0, type: null };
-         }
+            if (data.status === "success") {
+                if (data.amount > 0) {
+                    updateDialogue(`🏆 You Won ${data.amount.toFixed(2)} KALE! Processing...`, `${gameType}Dialogue`);
+                    setTimeout(fetchBalance, 4000); // Wait longer for tx to likely settle
+                } else {
+                    updateDialogue("✗ You Lost! Better luck next time!", `${gameType}Dialogue`);
+                }
+            } else {
+                // Should ideally not happen if status !success throws error above, but handle defensively
+                updateDialogue(`✗ Payout check failed: ${data.message || 'Bank error.'}`, `${gameType}Dialogue`);
+            }
+        } catch (error) {
+            // Catch errors thrown from fetch (network error) or the !response.ok block
+            console.error("Error processing winnings:", error);
+            // *** THIS IS THE KEY CHANGE ***
+            // Update the dialogue with the specific error message caught
+            const errorMessage = error.message || "An unknown error occurred.";
+            updateDialogue(`✗ Error: ${errorMessage}`, `${gameType}Dialogue`);
+            // *** END OF KEY CHANGE ***
+        } finally {
+            hideLoading();
+            // Reset active game only after payout attempt is fully complete (success or fail)
+            // Ensure this doesn't clear state needed for error display if needed, but seems okay here.
+            activeGame = { id: null, cost: 0, type: null };
+        }
     }
 
 
@@ -341,7 +345,6 @@ function initApp() {
         }
     }
 
-     // *** MODIFIED startScratchGame function ***
      function startScratchGame(gameId, cost, seedlings) {
          const scratchCard = document.getElementById("scratchCard");
          const dialogueId = "scratchDialogue";
@@ -396,14 +399,14 @@ function initApp() {
                              // Get signature and request payout (only runs once now)
                              const signature = await fetchSignature(gameId, cost);
                              if (signature) {
-                                 // Pass actual game details
+                                 // Pass actual game details from activeGame object
                                  await requestPayout(activeGame.id, activeGame.cost, signature, activeGame.type, null);
                              } else {
                                  updateDialogue("✗ Failed to secure game for payout.", dialogueId);
                                  activeGame = { id: null, cost: 0, type: null }; // Reset game if signature fails
                              }
 
-                             // Timeout to hide card - maybe increase delay slightly
+                             // Timeout to hide card
                              setTimeout(() => {
                                  scratchCard.classList.add("hidden");
                                  // Avoid overwriting payout message immediately
@@ -485,7 +488,7 @@ function initApp() {
             // 4. Get signature and request payout
             const signature = await fetchSignature(gameId, cost);
             if (signature) {
-                 // Pass actual game details
+                 // Pass actual game details from activeGame object
                  await requestPayout(activeGame.id, activeGame.cost, signature, activeGame.type, null);
             } else {
                  updateDialogue("✗ Failed to secure game for payout.", "slotsDialogue");
@@ -642,7 +645,7 @@ function initApp() {
                  // Get signature and request payout, sending the choice
                  const signature = await fetchSignature(gameId, cost);
                  if (signature) {
-                     // Pass actual game details
+                     // Pass actual game details from activeGame object
                      await requestPayout(activeGame.id, activeGame.cost, signature, activeGame.type, [chosenIndex]);
                  } else {
                       updateDialogue("✗ Failed to secure game for payout.", dialogueId);
