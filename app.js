@@ -1,3 +1,5 @@
+// app.js (Updated)
+
 function initApp() {
     // Ensure StellarSdk is loaded
     if (typeof StellarSdk === 'undefined') {
@@ -171,6 +173,7 @@ function initApp() {
 
             transaction.sign(playerKeypair);
             const result = await server.submitTransaction(transaction);
+            // Log result for debugging, but don't rely solely on console logs for feedback
             console.log("Payment Tx Result:", result);
 
             playerBalance -= amount; // Optimistically deduct, fetchBalance will correct if needed
@@ -213,8 +216,10 @@ function initApp() {
                  body: JSON.stringify({ game_id: gameId, cost: cost })
              });
              if (!response.ok) {
-                 const errorData = await response.json();
-                 throw new Error(errorData.error || `HTTP error ${response.status}`);
+                 // Try to parse error response from backend
+                 let errorJson;
+                 try { errorJson = await response.json(); } catch (e) { /* ignore parsing error */ }
+                 throw new Error(errorJson?.error || `HTTP error ${response.status}`);
              }
              const data = await response.json();
              hideLoading();
@@ -247,8 +252,10 @@ function initApp() {
              });
 
              if (!response.ok) {
-                 const errorData = await response.json();
-                 throw new Error(errorData.error || `Payout request failed: ${response.status}`);
+                 // Try to parse error response from backend for more specific message
+                 let errorJson;
+                 try { errorJson = await response.json(); } catch (e) { /* ignore parsing error */ }
+                 throw new Error(errorJson?.error || `Payout request failed: ${response.status}`);
              }
 
              const data = await response.json();
@@ -257,23 +264,25 @@ function initApp() {
              if (data.status === "success") {
                  if (data.amount > 0) {
                      updateDialogue(`🏆 You Won ${data.amount.toFixed(2)} KALE! Processing...`, `${gameType}Dialogue`);
-                     // Balance is updated server-side via payout tx, fetch new balance
-                     setTimeout(fetchBalance, 3000); // Wait a bit for tx to settle
+                     // Balance is updated server-side via payout tx, fetch new balance after a delay
+                     setTimeout(fetchBalance, 4000); // Wait a bit longer for tx to likely settle
                  } else {
                      updateDialogue("✗ You Lost! Better luck next time!", `${gameType}Dialogue`);
-                     // No balance change needed if lost
+                     // No balance change needed if lost, activeGame reset below
                  }
              } else {
                  // Use the error message from the backend if available
-                  updateDialogue(`✗ Payout failed: ${data.message || 'Bank error.'}`, `${gameType}Dialogue`);
+                 updateDialogue(`✗ Payout check failed: ${data.message || 'Bank error.'}`, `${gameType}Dialogue`);
              }
          } catch (error) {
+             // Catch errors thrown from fetch or !response.ok block
              console.error("Error processing winnings:", error);
+             // Display the specific error message caught
              updateDialogue(`✗ Error processing winnings: ${error.message}`, `${gameType}Dialogue`);
          } finally {
              hideLoading();
-             activeGame = { id: null, cost: 0, type: null }; // Reset active game after payout attempt
-              // Re-enable buttons after game conclusion? Or handle in specific game logic.
+             // Reset active game only after payout attempt is fully complete (success or fail)
+             activeGame = { id: null, cost: 0, type: null };
          }
     }
 
@@ -303,8 +312,8 @@ function initApp() {
             });
 
             if (!initResponse.ok) {
-                 const errorData = await initResponse.json();
-                 throw new Error(errorData.error || `HTTP error ${initResponse.status}`);
+                 let errorJson; try { errorJson = await initResponse.json(); } catch(e){}
+                 throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`);
             }
             const gameData = await initResponse.json();
             const gameId = gameData.gameId;
@@ -317,7 +326,7 @@ function initApp() {
              if (paymentSuccess) {
                  activeGame = { id: gameId, cost: cost, type: "Scratch" };
                  updateDialogue("✓ Paid! Scratch away!", "scratchDialogue");
-                 startScratchGame(gameId, cost, seedlings);
+                 startScratchGame(gameId, cost, seedlings); // Pass details to start game function
              } else {
                   updateDialogue("✗ Payment failed. Card cancelled.", "scratchDialogue");
                  // No need to revert init on backend unless necessary
@@ -332,15 +341,18 @@ function initApp() {
         }
     }
 
+     // *** MODIFIED startScratchGame function ***
      function startScratchGame(gameId, cost, seedlings) {
          const scratchCard = document.getElementById("scratchCard");
          const dialogueId = "scratchDialogue";
          scratchCard.innerHTML = "";
          scratchCard.classList.remove("hidden");
          scratchCard.className = `game grid-${seedlings === 9 ? 9 : seedlings === 3 ? 3 : 12}`; // Reset classes and apply grid
+         scratchCard.style.pointerEvents = 'auto'; // Ensure card is clickable initially
 
          let revealedCount = 0;
          let revealedSymbols = Array(seedlings).fill(null); // Store revealed symbols locally
+         let isGameConcluding = false; // <<< --- Add this flag to prevent multiple payouts
 
          for (let i = 0; i < seedlings; i++) {
              const spot = document.createElement("div");
@@ -349,13 +361,15 @@ function initApp() {
              spot.dataset.index = i; // Store index
 
              spot.onclick = async () => {
-                 if (!activeGame.id || spot.classList.contains("revealed") || spot.classList.contains("revealing")) {
-                     return; // Ignore clicks if game inactive, already revealed, or revealing
+                 // Ignore clicks if game inactive, already revealed, revealing, OR if payout already triggered
+                 if (!activeGame.id || spot.classList.contains("revealed") || spot.classList.contains("revealing") || isGameConcluding) { // <<< --- Check flag here
+                     return;
                  }
 
                  spot.classList.add("revealing");
                  spot.textContent = "🤔"; // Indicate loading/revealing
-                 updateDialogue("Revealing spot...", dialogueId);
+                 // Only update dialogue if not concluding game already
+                 if (!isGameConcluding) updateDialogue("Revealing spot...", dialogueId);
 
                  try {
                      const response = await fetch(`${BANK_API_URL}/reveal_spot`, {
@@ -373,39 +387,44 @@ function initApp() {
                          revealedCount++;
                          revealedSymbols[i] = symbol; // Store revealed symbol
 
-                         // Check if all spots revealed
-                         if (revealedCount === seedlings) {
+                         // Check if all spots revealed AND payout hasn't started
+                         if (revealedCount === seedlings && !isGameConcluding) { // <<< --- Check flag again for safety
+                             isGameConcluding = true; // <<< --- Set flag IMMEDIATELY
                              updateDialogue("All spots revealed! Checking results...", dialogueId);
-                             scratchCard.style.pointerEvents = 'none'; // Disable further clicks
+                             scratchCard.style.pointerEvents = 'none'; // Disable further clicks on the grid
 
-                             // Get signature and request payout
+                             // Get signature and request payout (only runs once now)
                              const signature = await fetchSignature(gameId, cost);
                              if (signature) {
-                                 await requestPayout(gameId, cost, signature, "Scratch", null); // Choices not needed for scratch payout
+                                 // Pass actual game details
+                                 await requestPayout(activeGame.id, activeGame.cost, signature, activeGame.type, null);
                              } else {
                                  updateDialogue("✗ Failed to secure game for payout.", dialogueId);
+                                 activeGame = { id: null, cost: 0, type: null }; // Reset game if signature fails
                              }
-                             // Re-enable card interaction? Or wait for menu navigation.
+
+                             // Timeout to hide card - maybe increase delay slightly
                              setTimeout(() => {
-                                scratchCard.style.pointerEvents = 'auto';
-                                scratchCard.classList.add("hidden"); // Hide card after showing result
-                                updateDialogue("Game finished. Buy another?", dialogueId); // Reset dialogue
-                             }, 4000); // Hide after 4 seconds
-                         } else {
+                                 scratchCard.classList.add("hidden");
+                                 // Avoid overwriting payout message immediately
+                                 // updateDialogue("Game finished. Buy another?", dialogueId);
+                             }, 5000); // Increased to 5 seconds
+
+                         } else if (!isGameConcluding) { // Only update if not concluding
                             updateDialogue(`Spot revealed! ${seedlings - revealedCount} remaining.`, dialogueId);
                          }
                      } else {
-                         const errorData = await response.json();
-                         console.error("Error revealing spot:", errorData);
+                         let errorJson; try { errorJson = await response.json(); } catch(e){}
+                         console.error("Error revealing spot:", errorJson || response.status);
                          spot.textContent = "Error";
                          spot.classList.remove("revealing");
-                         updateDialogue(`✗ Error revealing spot: ${errorData.error || 'Unknown error'}`, dialogueId);
+                         updateDialogue(`✗ Error revealing spot: ${errorJson?.error || 'Unknown error'}`, dialogueId);
                      }
                  } catch (error) {
                      console.error("Error revealing spot:", error);
                      spot.textContent = "Error";
                      spot.classList.remove("revealing");
-                      updateDialogue(`✗ Network error revealing spot.`, dialogueId);
+                     updateDialogue(`✗ Network error revealing spot.`, dialogueId);
                  }
              };
              scratchCard.appendChild(spot);
@@ -450,8 +469,8 @@ function initApp() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                 throw new Error(errorData.error || `HTTP error ${response.status}`);
+                 let errorJson; try { errorJson = await response.json(); } catch(e){}
+                 throw new Error(errorJson?.error || `HTTP error ${response.status}`);
             }
             const data = await response.json();
             const gameId = data.gameId;
@@ -466,17 +485,19 @@ function initApp() {
             // 4. Get signature and request payout
             const signature = await fetchSignature(gameId, cost);
             if (signature) {
-                 await requestPayout(gameId, cost, signature, "Slots", null); // Choices not needed
+                 // Pass actual game details
+                 await requestPayout(activeGame.id, activeGame.cost, signature, activeGame.type, null);
             } else {
                  updateDialogue("✗ Failed to secure game for payout.", "slotsDialogue");
                  fetchBalance(); // Try to fetch balance if payout failed early
+                 activeGame = { id: null, cost: 0, type: null }; // Reset game
             }
             // Hide game after timeout
             setTimeout(() => {
                 const slotsGame = document.getElementById("slotsGame");
                 if(slotsGame) slotsGame.classList.add("hidden");
-                updateDialogue("Game finished. Spin again?", "slotsDialogue");
-            }, 4000);
+                // updateDialogue("Game finished. Spin again?", "slotsDialogue");
+            }, 5000);
 
         } catch (error) {
             console.error("Error playing slots:", error);
@@ -560,8 +581,8 @@ function initApp() {
             });
 
             if (!initResponse.ok) {
-                const errorData = await initResponse.json();
-                 throw new Error(errorData.error || `HTTP error ${initResponse.status}`);
+                let errorJson; try { errorJson = await initResponse.json(); } catch(e){}
+                throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`);
             }
             const gameData = await initResponse.json();
             const gameId = gameData.gameId;
@@ -574,7 +595,7 @@ function initApp() {
             if (paymentSuccess) {
                  activeGame = { id: gameId, cost: cost, type: "Monte" };
                  updateDialogue("✓ Paid! Find the Kale 🥬!", "monteDialogue");
-                 renderMonte(gameId, cost, numCards);
+                 renderMonte(gameId, cost, numCards); // Pass details to render
             } else {
                  updateDialogue("✗ Payment failed. Game cancelled.", "monteDialogue");
             }
@@ -594,58 +615,57 @@ function initApp() {
          monteGame.innerHTML = "";
          monteGame.classList.remove("hidden");
          monteGame.className = `game grid-${numCards === 5 ? 5 : numCards === 4 ? 4 : 3}`; // Reset classes and apply grid
+         monteGame.classList.remove('revealed'); // Ensure revealed class is removed initially
+         monteGame.style.pointerEvents = 'auto'; // Ensure clickable
 
          for (let i = 0; i < numCards; i++) {
              const card = document.createElement("div");
              card.classList.add("monte-card");
              card.textContent = "🌱"; // Show back of card (seedling)
              card.dataset.index = i; // Store 0-based index
+             card.style.pointerEvents = 'auto'; // Ensure individual cards clickable
 
              card.onclick = async () => {
-                 if (!activeGame.id || monteGame.classList.contains('revealed')) {
+                 // Check activeGame using the object, not just gameId
+                 if (!activeGame.id || activeGame.type !== "Monte" || monteGame.classList.contains('revealed')) {
+                     console.log("Monte click ignored:", activeGame, monteGame.classList.contains('revealed'));
                      return; // Ignore clicks if game inactive or already revealed
                  }
 
                  const chosenIndex = i + 1; // Player's guess (1-based)
                  updateDialogue(`You chose card ${chosenIndex}. Checking result...`, dialogueId);
-                 monteGame.classList.add('revealed'); // Prevent further clicks
+                 monteGame.classList.add('revealed'); // Prevent further clicks on the grid overall
 
-                 // Disable all cards temporarily
+                 // Disable all cards immediately
                  monteGame.querySelectorAll('.monte-card').forEach(c => c.style.pointerEvents = 'none');
-
 
                  // Get signature and request payout, sending the choice
                  const signature = await fetchSignature(gameId, cost);
                  if (signature) {
-                     await requestPayout(gameId, cost, signature, "Monte", [chosenIndex]);
+                     // Pass actual game details
+                     await requestPayout(activeGame.id, activeGame.cost, signature, activeGame.type, [chosenIndex]);
                  } else {
                       updateDialogue("✗ Failed to secure game for payout.", dialogueId);
-                      fetchBalance(); // Refresh balance on early failure
+                      activeGame = { id: null, cost: 0, type: null }; // Reset game
                  }
 
-                 // Visually reveal all cards AFTER payout response (or timeout)
-                 // This might need adjustment based on how requestPayout updates dialogue.
-                 // Maybe reveal immediately after click? Let's reveal after payout attempt.
+                 // Visually reveal cards AFTER payout attempt
                  setTimeout(async () => {
-                    // We don't know the actual layout here anymore! Backend does.
-                    // We can just show the result message from requestPayout.
-                    // Optionally, could add another backend endpoint to GET the final layout for gameId.
-                    // For now, just rely on the dialogue message.
                     monteGame.querySelectorAll('.monte-card').forEach(c => {
-                        c.textContent = "?"; // Or leave as 🌱, dialogue has the result
-                        c.classList.add('revealed'); // Mark as revealed visually
+                        c.textContent = "?"; // Show placeholder as we don't know layout
+                        c.classList.add('revealed');
                     });
-                    // Highlight the chosen card maybe?
+                    // Highlight the chosen card
                     const chosenCardElement = monteGame.querySelector(`[data-index="${i}"]`);
                     if (chosenCardElement) {
-                        chosenCardElement.style.border = '2px solid blue'; // Example highlight
+                        chosenCardElement.style.border = '2px solid blue';
                     }
 
                      setTimeout(() => {
-                        monteGame.classList.add("hidden"); // Hide after showing result
-                        updateDialogue("Game finished. Play again?", dialogueId);
-                    }, 4000);
-                 }, 1000); // Small delay after payout call
+                        monteGame.classList.add("hidden");
+                        // updateDialogue("Game finished. Play again?", dialogueId);
+                    }, 5000); // Hide after 5 secs
+                 }, 1000); // Delay reveal slightly
              };
              monteGame.appendChild(card);
          }
@@ -668,8 +688,6 @@ function initApp() {
         }
         try {
             playerKeypair = StellarSdk.Keypair.fromSecret(secret);
-            // DON'T store secret key in localStorage. Public key is fine if needed.
-            // localStorage.setItem('publicKey', playerKeypair.publicKey());
 
             updateDialogue(`Logging in as ${playerKeypair.publicKey().substring(0, 8)}...`, "dialogue");
 
@@ -693,7 +711,6 @@ function initApp() {
 
     function logout() {
         playerKeypair = null;
-        // localStorage.removeItem('publicKey');
         playerBalance = 0;
         updateBalanceDisplay(); // Clear balance display
         document.getElementById("secretKey").value = ""; // Clear input field
@@ -728,7 +745,6 @@ function initApp() {
     window.showSlots = showSlots;
     window.showMonte = showMonte;
     window.showDonation = showDonation;
-    // No need to expose startScratchGame, animateSlots, renderMonte etc.
 }
 
 // Run the app initialization function once the DOM is ready
