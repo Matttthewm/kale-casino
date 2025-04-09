@@ -1,4 +1,4 @@
-// app.js (MODIFIED for Freighter Integration)
+// app.js (MODIFIED for Freighter Integration - with debug log)
 
 // Make sure freighterApi is available globally if using the CDN script
 // import { isConnected, getPublicKey, signTransaction } from "@stellar/freighter-api"; // Use this if bundling
@@ -243,6 +243,9 @@ function initApp() {
      * Stores the key in localStorage on success.
      */
     async function connectFreighter() {
+        // *** DEBUG LINE ADDED HERE ***
+        console.log("Connect Freighter button clicked! Attempting to run function...");
+
         if (!freighterInstalled) {
             updateDialogue("Freighter is not installed. Please install the extension.", "loginDialogue");
             return;
@@ -615,7 +618,7 @@ function initApp() {
          });
      }
 
-     async function buyMonte(cost, numCards) {
+     async function buyMonte(cost, numCards) { // numCards argument is now primarily for UI hint if needed, backend decides real count
         if (activeGame.id) { updateDialogue("Please wait for the current game to finish.", "monteDialogue"); return; }
         if (!playerPublicKey) { updateDialogue("Please connect your wallet first.", "monteDialogue"); return; }
         if (playerBalance < cost) { updateDialogue(`✗ Need ${cost} KALE, you have ${playerBalance.toFixed(2)}!`, "monteDialogue"); return; }
@@ -630,8 +633,7 @@ function initApp() {
              if (!initResponse.ok) { let errorJson; try { errorJson = await initResponse.json(); } catch(e){} throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`); }
              const gameData = await initResponse.json();
              const gameId = gameData.gameId;
-             // numCards is now determined by backend based on cost, use gameData.numCards
-             const actualNumCards = gameData.numCards;
+             const actualNumCards = gameData.numCards; // Use numCards from backend response
 
              activeGame.id = gameId; // Update with real game ID
 
@@ -742,7 +744,7 @@ function initApp() {
     if (connectBtn) {
         connectBtn.onclick = connectFreighter; // Assign function directly
     } else {
-        console.error("Connect Freighter button not found!");
+        console.error("Connect Freighter button not found! Make sure index.html has the button with id='connectFreighterBtn'.");
     }
 
     // Try to resume session on load
