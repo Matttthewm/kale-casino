@@ -1,4 +1,4 @@
-// app.js (MODIFIED for Freighter Integration - with debug log)
+// app.js (MODIFIED for Freighter Integration - with MORE debug logs)
 
 // Make sure freighterApi is available globally if using the CDN script
 // import { isConnected, getPublicKey, signTransaction } from "@stellar/freighter-api"; // Use this if bundling
@@ -243,45 +243,58 @@ function initApp() {
      * Stores the key in localStorage on success.
      */
     async function connectFreighter() {
-        // *** DEBUG LINE ADDED HERE ***
-        console.log("Connect Freighter button clicked! Attempting to run function...");
+        console.log("Connect Freighter button clicked! Attempting to run function..."); // LOG 1
 
         if (!freighterInstalled) {
+            console.log("Freighter not installed check."); // LOG 2
             updateDialogue("Freighter is not installed. Please install the extension.", "loginDialogue");
             return;
         }
+        console.log("Freighter detected. Updating UI..."); // LOG 3
         updateDialogue("Connecting to Freighter...", "loginDialogue");
         showLoading("Connecting...");
         try {
+            // *** ADDED LOGGING AROUND getPublicKey ***
+            console.log("Attempting to call freighterApi.getPublicKey()..."); // LOG 4
             const publicKey = await freighterApi.getPublicKey();
+            console.log("freighterApi.getPublicKey() call completed. Result:", publicKey); // LOG 5
+
             if (publicKey) {
+                console.log("Public key received:", publicKey); // LOG 6
                 playerPublicKey = publicKey;
                 updateDialogue(`✓ Connected as ${publicKey.substring(0, 8)}... Checking trustline...`, "loginDialogue");
-                // Store key for session persistence
                 try { localStorage.setItem(LOCALSTORAGE_KEY, publicKey); } catch(e) { console.warn("LocalStorage not available", e); }
 
-                const trustlineOk = await ensureTrustline(); // Check/establish trustline after connect
+                console.log("Ensuring trustline..."); // LOG 7
+                const trustlineOk = await ensureTrustline();
+                console.log("Trustline check result:", trustlineOk); // LOG 8
+
                 if (trustlineOk) {
+                    console.log("Trustline OK. Fetching balance and showing menu..."); // LOG 9
                     await fetchBalance();
                     showScreen("menu");
-                    updateDialogue(`✓ Ready to play!`, 'dialogue'); // Use main menu dialogue
+                    updateDialogue(`✓ Ready to play!`, 'dialogue');
                 } else {
-                    // Error message handled in ensureTrustline
-                    logout(); // Log out if trustline fails
+                    console.log("Trustline check failed. Logging out."); // LOG 10
+                    logout();
                 }
             } else {
+                console.log("getPublicKey() returned null or empty. User likely declined or closed popup."); // LOG 11
                 updateDialogue("✗ Connection failed. Please ensure Freighter is unlocked and try again.", "loginDialogue");
-                logout(); // Ensure clean state
+                logout();
             }
         } catch (error) {
-            console.error("Freighter connection error:", error);
+             // *** ADDED LOGGING INSIDE CATCH ***
+            console.error("Freighter connection error occurred in try block:", error); // LOG 12 (Error Object)
              if (error instanceof Error && error.message.includes("request is pending")) {
                  updateDialogue("✗ Freighter request is already pending. Please check the extension.", "loginDialogue");
              } else {
+                 // Display the actual error message if available
                 updateDialogue(`✗ Error connecting: ${error.message || 'Unknown error'}`, "loginDialogue");
              }
-             logout(); // Ensure clean state on error
+             logout();
         } finally {
+            console.log("connectFreighter() finally block reached. Hiding loading."); // LOG 13
             hideLoading();
         }
     }
@@ -291,7 +304,8 @@ function initApp() {
      * Tries to resume session if possible.
      */
      async function checkFreighterConnection() {
-        if (!freighterInstalled) {
+        // ... (this function remains the same as before) ...
+         if (!freighterInstalled) {
             showScreen("login");
             updateDialogue("Freighter is not installed.", "loginDialogue");
             return;
@@ -303,7 +317,6 @@ function initApp() {
             const storedKey = localStorage.getItem(LOCALSTORAGE_KEY);
 
             if (isConnected && storedKey) {
-                 // Verify the connected key matches the stored one
                  const currentKey = await freighterApi.getPublicKey();
                  if (currentKey === storedKey) {
                     playerPublicKey = currentKey;
@@ -311,22 +324,19 @@ function initApp() {
                     await fetchBalance();
                     showScreen("menu");
                     hideLoading();
-                    return; // Successfully resumed session
+                    return;
                  } else {
-                     // Key mismatch, likely user switched accounts in Freighter
                      console.log("Freighter account changed. Clearing stored key.");
-                     logout(); // Clear state and prompt for connection
+                     logout();
                  }
             } else {
-                // Not connected or no stored key
-                 logout(); // Ensure clean state
+                 logout();
             }
         } catch (error) {
             console.error("Error checking Freighter connection:", error);
              updateDialogue(`✗ Error checking connection: ${error.message || 'Unknown error'}. Please try connecting manually.`, "loginDialogue");
-             logout(); // Ensure clean state on error
+             logout();
         }
-         // If session couldn't be resumed, show login screen
          showScreen("login");
          updateDialogue("Please connect your wallet.", "loginDialogue");
          hideLoading();
@@ -339,13 +349,12 @@ function initApp() {
      * @returns {Promise<string|null>} - The signed transaction XDR or null if signing failed.
      */
      async function signWithFreighter(transactionXDR) {
+        // ... (this function remains the same as before) ...
          if (!playerPublicKey || !freighterInstalled) {
-             updateDialogue("Not connected. Please connect Freighter.", "dialogue"); // Use general dialogue
+             updateDialogue("Not connected. Please connect Freighter.", "dialogue");
              return null;
          }
          try {
-            // Request signature from Freighter
-             // Pass the network passphrase correctly
             const signedXDR = await freighterApi.signTransaction(transactionXDR, {
                 network: NETWORK_PASSPHRASE === StellarSdk.Networks.PUBLIC ? 'PUBLIC' : 'TESTNET'
             });
@@ -362,15 +371,15 @@ function initApp() {
                      errorMsg = `✗ Signing error: ${error.message}`;
                  }
              }
-             // Display error in the *active game's* dialogue, or login dialogue if signing trustline
              const currentDialogueId = activeGame.type ? `${activeGame.type.toLowerCase()}Dialogue` : "loginDialogue";
              updateDialogue(errorMsg, currentDialogueId);
-             return null; // Indicate signing failure
+             return null;
          }
      }
 
     // --- Backend Interaction (Unchanged) ---
     async function fetchSignature(gameId, cost) {
+        // ... (this function remains the same as before) ...
         if (!gameId || !cost) return null;
         showLoading("Securing game...");
         try {
@@ -392,7 +401,7 @@ function initApp() {
     }
 
      async function requestPayout(gameId, cost, signature, gameType, choices) {
-        // Use playerPublicKey obtained via Freighter
+        // ... (this function remains the same as before) ...
         if (!gameId || !cost || !signature || !playerPublicKey) return null;
         showLoading("Checking Result...");
         const dialogueId = `${gameType.toLowerCase()}Dialogue`;
@@ -402,7 +411,7 @@ function initApp() {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     game_id: gameId, cost: cost, signature: signature,
-                    destination: playerPublicKey, // Send connected public key
+                    destination: playerPublicKey,
                     game_type: gameType, choices: choices })
             });
 
@@ -416,12 +425,9 @@ function initApp() {
 
             if (data.status === "success") {
                 const winnings = data.amount;
-                // Get cost from activeGame *before* resetting it
-                 const spentCost = activeGame.cost; // Use a temporary variable
-
-                 activeGame = { id: null, cost: 0, type: null }; // Clear active game *after* successful processing
-
-                 let message = `You spent ${spentCost} KALE. `; // Use spentCost
+                 const spentCost = activeGame.cost;
+                 activeGame = { id: null, cost: 0, type: null };
+                 let message = `You spent ${spentCost} KALE. `;
                  if (winnings > 0) {
                     message += `🏆 You won ${winnings.toFixed(2)} KALE! Payout sent. Balance updating...`;
                     setTimeout(fetchBalance, 4000);
@@ -432,13 +438,13 @@ function initApp() {
                  return data;
             } else {
                  updateDialogue(`✗ Payout check failed: ${data.message || data.error || 'Bank error.'}`, dialogueId);
-                  activeGame = { id: null, cost: 0, type: null }; // Clear game on bank failure too
+                  activeGame = { id: null, cost: 0, type: null };
             }
         } catch (error) {
             console.error("Error processing winnings:", error);
             const errorMessage = error.message || "An unknown network error occurred.";
              updateDialogue(`✗ Error: ${errorMessage}`, dialogueId);
-             activeGame = { id: null, cost: 0, type: null }; // Clear game on fetch/network error
+             activeGame = { id: null, cost: 0, type: null };
         } finally {
             hideLoading();
         }
@@ -446,10 +452,7 @@ function initApp() {
     }
 
     // --- Game Logic Functions (buyScratchCard, startScratchGame, buySlots, animateSlots, buyMonte, renderMonte) ---
-    // These functions remain largely the same, but rely on the modified
-    // deductKale, fetchSignature, and requestPayout functions which now use Freighter.
-    // Ensure activeGame is set correctly at the start of each game purchase.
-
+    // ... (These functions remain the same internally as the previous version) ...
      async function buyScratchCard(cost) {
          if (activeGame.id) { updateDialogue("Please wait for the current game to finish.", "scratchDialogue"); return; }
          if (!playerPublicKey) { updateDialogue("Please connect your wallet first.", "scratchDialogue"); return; }
@@ -457,35 +460,27 @@ function initApp() {
         showLoading("Initializing Scratch Card...");
         updateDialogue("Getting your scratch card ready...", "scratchDialogue");
         try {
-            // Set active game *before* payment attempt, needed for context if payment fails signature step
-            activeGame = { id: `temp-${Date.now()}`, cost: cost, type: "Scratch" }; // Temporary ID until backend confirms
-
+            activeGame = { id: `temp-${Date.now()}`, cost: cost, type: "Scratch" };
             const initResponse = await fetch(`${BANK_API_URL}/init_scratch_game`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cost: cost }), });
             if (!initResponse.ok) { let errorJson; try { errorJson = await initResponse.json(); } catch(e){} throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`); }
             const gameData = await initResponse.json();
             const gameId = gameData.gameId; const seedlings = gameData.seedlings;
-
-            activeGame.id = gameId; // Update with real game ID from backend
-
+            activeGame.id = gameId;
             const memo = `Scratch ${gameId.slice(-6)}`;
-            const paymentSuccess = await deductKale(cost, memo, "scratchDialogue"); // Uses Freighter
+            const paymentSuccess = await deductKale(cost, memo, "scratchDialogue");
             if (paymentSuccess) {
-                 // Message updated in deductKale
                  startScratchGame(gameId, cost, seedlings);
             } else {
-                activeGame = { id: null, cost: 0, type: null }; // Reset if payment failed
+                activeGame = { id: null, cost: 0, type: null };
             }
          } catch (error) {
              console.error("Error buying scratch card:", error);
              updateDialogue(`✗ Error starting scratch game: ${error.message}`, "scratchDialogue");
-             fetchBalance(); // Update balance in case of error after payment attempt
-             activeGame = { id: null, cost: 0, type: null }; // Reset on error
+             fetchBalance();
+             activeGame = { id: null, cost: 0, type: null };
          } finally { hideLoading(); }
     }
-
      function startScratchGame(gameId, cost, seedlings) {
-        // --- This function remains the same internally ---
-        // It calls fetchSignature and requestPayout which are already modified
          const scratchCard = document.getElementById("scratchCard");
          const dialogueId = "scratchDialogue";
          scratchCard.innerHTML = ""; scratchCard.classList.remove("hidden");
@@ -493,14 +488,12 @@ function initApp() {
          scratchCard.style.pointerEvents = 'auto';
          let revealedCount = 0; let revealedSymbols = Array(seedlings).fill(null);
          let isGameConcluding = false;
-
          updateDialogue("Card ready! Click the 🌱 to reveal.", dialogueId);
-
          for (let i = 0; i < seedlings; i++) {
              const spot = document.createElement("div");
              spot.classList.add("scratch-spot"); spot.textContent = "🌱"; spot.dataset.index = i;
              spot.onclick = async () => {
-                 if (!activeGame.id || activeGame.id !== gameId || spot.classList.contains("revealed") || spot.classList.contains("revealing") || isGameConcluding) { return; } // Check gameId match
+                 if (!activeGame.id || activeGame.id !== gameId || spot.classList.contains("revealed") || spot.classList.contains("revealing") || isGameConcluding) { return; }
                  spot.classList.add("revealing"); spot.textContent = "🤔";
                  if (!isGameConcluding) updateDialogue("Revealing spot...", dialogueId);
                  try {
@@ -514,22 +507,21 @@ function initApp() {
                              updateDialogue("All spots revealed! Checking results...", dialogueId);
                              scratchCard.style.pointerEvents = 'none';
                              const signature = await fetchSignature(gameId, cost);
-                             if (signature && activeGame.id === gameId) { // Check activeGame again before payout
+                             if (signature && activeGame.id === gameId) {
                                 await requestPayout(gameId, cost, signature, "Scratch", null);
                             } else if (!signature) {
                                 updateDialogue("✗ Failed to secure game for payout.", dialogueId);
-                                activeGame = { id: null, cost: 0, type: null }; // Reset if signature fails
+                                activeGame = { id: null, cost: 0, type: null };
                             }
                              setTimeout(() => { scratchCard.classList.add("hidden"); }, 5000);
                          } else if (!isGameConcluding) {
                              updateDialogue(`Spot revealed! ${seedlings - revealedCount} remaining.`, dialogueId);
                          }
-                     } else { // Handle reveal error
+                     } else {
                          let errorJson; try { errorJson = await response.json(); } catch(e){} console.error("Error revealing spot:", errorJson || response.status);
                          spot.textContent = "Error"; spot.classList.remove("revealing"); updateDialogue(`✗ Error revealing spot: ${errorJson?.error || 'Unknown error'}`, dialogueId);
-                         // Should we end the game here? Maybe not automatically.
                      }
-                 } catch (error) { // Handle network error during reveal
+                 } catch (error) {
                      console.error("Error revealing spot:", error); spot.textContent = "Error"; spot.classList.remove("revealing");
                      updateDialogue(`✗ Network error revealing spot.`, dialogueId);
                  }
@@ -537,60 +529,48 @@ function initApp() {
              scratchCard.appendChild(spot);
          }
      }
-
      async function buySlots(cost, reels) {
         if (activeGame.id) { updateDialogue("Please wait for the current game to finish.", "slotsDialogue"); return; }
         if (!playerPublicKey) { updateDialogue("Please connect your wallet first.", "slotsDialogue"); return; }
         if (playerBalance < cost) { updateDialogue(`✗ Need ${cost} KALE, you have ${playerBalance.toFixed(2)}!`, "slotsDialogue"); return; }
         showLoading("Preparing Slots...");
         updateDialogue("Placing your bet...", "slotsDialogue");
-
         try {
-             // Set active game *before* payment attempt
              activeGame = { id: `temp-${Date.now()}`, cost: cost, type: "Slots" };
-
              const gameStartTime = Date.now(); const memo = `Slots ${cost}-${gameStartTime.toString().slice(-6)}`;
-             const paymentSuccess = await deductKale(cost, memo, "slotsDialogue"); // Uses Freighter
+             const paymentSuccess = await deductKale(cost, memo, "slotsDialogue");
              if (!paymentSuccess) {
-                 activeGame = { id: null, cost: 0, type: null }; // Reset if payment failed
+                 activeGame = { id: null, cost: 0, type: null };
                  hideLoading(); return;
              }
-
-             // Payment successful, now get game details from backend
              updateDialogue("Spinning reels...", "slotsDialogue");
              const response = await fetch(`${BANK_API_URL}/play_slots`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cost: cost, num_reels: reels }), });
              if (!response.ok) { let errorJson; try { errorJson = await response.json(); } catch(e){} throw new Error(errorJson?.error || `HTTP error ${response.status}`); }
              const data = await response.json();
              const gameId = data.gameId; const finalReels = data.result;
-
-             activeGame.id = gameId; // Update with real game ID
-
+             activeGame.id = gameId;
              console.log("Slots gameId received from /play_slots:", gameId);
              console.log("Set activeGame.id to:", activeGame.id);
-
              await animateSlots(reels, finalReels);
              updateDialogue("Spin finished! Checking results...", "slotsDialogue");
-
              const signature = await fetchSignature(gameId, cost);
-             if (signature && activeGame.id === gameId) { // Check active game again
+             if (signature && activeGame.id === gameId) {
                 console.log(`Calling requestPayout for Slots with gameId: ${gameId}, cost: ${cost}, type: Slots`);
                  await requestPayout(gameId, cost, signature, "Slots", null);
              } else if (!signature) {
                  updateDialogue("✗ Failed to secure game for payout.", "slotsDialogue");
-                 fetchBalance(); // Fetch balance if signature failed after payment
+                 fetchBalance();
                  activeGame = { id: null, cost: 0, type: null };
              }
              setTimeout(() => { const slotsGame = document.getElementById("slotsGame"); if(slotsGame) slotsGame.classList.add("hidden"); }, 5000);
          } catch (error) {
              console.error("Error playing slots:", error);
              updateDialogue(`✗ Error playing slots: ${error.message}`, "slotsDialogue");
-             fetchBalance(); // Fetch balance on error
-             activeGame = { id: null, cost: 0, type: null }; // Reset on error
+             fetchBalance();
+             activeGame = { id: null, cost: 0, type: null };
          } finally { hideLoading(); }
     }
-
      async function animateSlots(reels, finalResult) {
-         // --- This function remains the same internally ---
          const slotsGame = document.getElementById("slotsGame");
          slotsGame.innerHTML = ""; slotsGame.classList.remove("hidden");
          slotsGame.className = `game grid-${reels === 9 ? 9 : reels === 6 ? 6 : 3}`;
@@ -617,81 +597,63 @@ function initApp() {
              }, intervalTime);
          });
      }
-
-     async function buyMonte(cost, numCards) { // numCards argument is now primarily for UI hint if needed, backend decides real count
+     async function buyMonte(cost, numCards) {
         if (activeGame.id) { updateDialogue("Please wait for the current game to finish.", "monteDialogue"); return; }
         if (!playerPublicKey) { updateDialogue("Please connect your wallet first.", "monteDialogue"); return; }
         if (playerBalance < cost) { updateDialogue(`✗ Need ${cost} KALE, you have ${playerBalance.toFixed(2)}!`, "monteDialogue"); return; }
         showLoading("Initializing Monte Game...");
         updateDialogue("Setting up the cards...", "monteDialogue");
-
         try {
-             // Set active game *before* payment attempt
              activeGame = { id: `temp-${Date.now()}`, cost: cost, type: "Monte" };
-
              const initResponse = await fetch(`${BANK_API_URL}/init_monte_game`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cost: cost }), });
              if (!initResponse.ok) { let errorJson; try { errorJson = await initResponse.json(); } catch(e){} throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`); }
              const gameData = await initResponse.json();
              const gameId = gameData.gameId;
-             const actualNumCards = gameData.numCards; // Use numCards from backend response
-
-             activeGame.id = gameId; // Update with real game ID
-
+             const actualNumCards = gameData.numCards;
+             activeGame.id = gameId;
              const memo = `Monte ${gameId.slice(-6)}`;
-             const paymentSuccess = await deductKale(cost, memo, "monteDialogue"); // Uses Freighter
+             const paymentSuccess = await deductKale(cost, memo, "monteDialogue");
              if (paymentSuccess) {
-                 // Message updated in deductKale
-                 renderMonte(gameId, cost, actualNumCards); // Use actualNumCards from backend
+                 renderMonte(gameId, cost, actualNumCards);
              } else {
-                 activeGame = { id: null, cost: 0, type: null }; // Reset if payment failed
+                 activeGame = { id: null, cost: 0, type: null };
              }
         } catch (error) {
             console.error("Error buying Monte game:", error);
             updateDialogue(`✗ Error starting Monte game: ${error.message}`, "monteDialogue");
             fetchBalance();
-            activeGame = { id: null, cost: 0, type: null }; // Reset on error
+            activeGame = { id: null, cost: 0, type: null };
         } finally { hideLoading(); }
     }
-
      function renderMonte(gameId, cost, numCards) {
-         // --- This function remains mostly the same internally ---
-         // It calls fetchSignature and requestPayout which are already modified
          const monteGame = document.getElementById("monteGame");
          const dialogueId = "monteDialogue";
          monteGame.innerHTML = ""; monteGame.classList.remove("hidden");
          monteGame.className = `game grid-${numCards === 5 ? 5 : numCards === 4 ? 4 : 3}`;
          monteGame.classList.remove('revealed');
          monteGame.style.pointerEvents = 'auto';
-
          updateDialogue(`Find the Kale 🥬! Click a card to make your choice.`, dialogueId);
-
          for (let i = 0; i < numCards; i++) {
              const card = document.createElement("div");
              card.classList.add("monte-card");
              card.textContent = "❓";
              card.dataset.index = i;
              card.style.pointerEvents = 'auto';
-
              card.onclick = async () => {
-                 if (!activeGame.id || activeGame.id !== gameId || monteGame.classList.contains('revealed')) { return; } // Check gameId match
+                 if (!activeGame.id || activeGame.id !== gameId || monteGame.classList.contains('revealed')) { return; }
                  const chosenIndex = i + 1;
                  const chosenCardElement = card;
-
                  updateDialogue(`You chose card ${chosenIndex}. Checking result...`, dialogueId);
                  monteGame.classList.add('revealed');
                  monteGame.querySelectorAll('.monte-card').forEach(c => c.style.pointerEvents = 'none');
-
                  const signature = await fetchSignature(gameId, cost);
-
                  let payoutData = null;
-                 if (signature && activeGame.id === gameId) { // Check active game again
+                 if (signature && activeGame.id === gameId) {
                      payoutData = await requestPayout(gameId, cost, signature, "Monte", [chosenIndex]);
                  } else if (!signature) {
                      updateDialogue("✗ Failed to secure game for payout.", dialogueId);
-                     activeGame = { id: null, cost: 0, type: null }; // Reset if signature fails
+                     activeGame = { id: null, cost: 0, type: null };
                  }
-
-                 // Reveal cards AFTER payout attempt
                  setTimeout(() => {
                     const allCardElements = monteGame.querySelectorAll('.monte-card');
                     if (payoutData && payoutData.status === 'success' && payoutData.finalLayout) {
@@ -701,12 +663,8 @@ function initApp() {
                              c.classList.add('revealed');
                              if (finalLayout[index] === '🥬') { c.classList.add('kale-card'); }
                          });
-                     } else { // Fallback if layout missing
+                     } else {
                          allCardElements.forEach(c => { c.textContent = "!"; c.classList.add('revealed'); });
-                         if (!payoutData || payoutData.status !== 'success') {
-                            // Dialogue already shows payout error, maybe add layout specific message?
-                            // updateDialogue("Could not retrieve final card layout. Result already determined.", dialogueId);
-                         }
                      }
                      if (chosenCardElement) { chosenCardElement.style.border = '3px solid blue'; }
                      setTimeout(() => { monteGame.classList.add("hidden"); }, 5000);
