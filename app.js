@@ -11,7 +11,7 @@ function initApp() {
         return;
     }
     // Check if Freighter is available
-    const freighterInstalled = typeof freighterApi !== 'undefined' && freighterApi.isConnected; // Basic check
+    const freighterInstalled = typeof window.freighterApi !== 'undefined' && window.freighterApi.isConnected; // Basic check
 
     const server = new StellarSdk.Horizon.Server("https://horizon.stellar.org");
     const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC; // PUBLIC or TESTNET
@@ -245,7 +245,7 @@ function initApp() {
     async function connectFreighter() {
         console.log("Connect Freighter button clicked! Attempting to run function..."); // LOG 1
 
-        if (!freighterInstalled) {
+        if (typeof window.freighterApi === 'undefined' || !window.freighterApi.isConnected) {
             console.log("Freighter not installed check."); // LOG 2
             updateDialogue("Freighter is not installed. Please install the extension.", "loginDialogue");
             return;
@@ -255,9 +255,9 @@ function initApp() {
         showLoading("Connecting...");
         try {
             // *** ADDED LOGGING AROUND getPublicKey ***
-            console.log("Attempting to call freighterApi.getPublicKey()..."); // LOG 4
-            const publicKey = await freighterApi.getPublicKey();
-            console.log("freighterApi.getPublicKey() call completed. Result:", publicKey); // LOG 5
+            console.log("Attempting to call window.freighterApi.getPublicKey()..."); // LOG 4
+            const publicKey = await window.freighterApi.getPublicKey();
+            console.log("window.freighterApi.getPublicKey() call completed. Result:", publicKey); // LOG 5
 
             if (publicKey) {
                 console.log("Public key received:", publicKey); // LOG 6
@@ -305,7 +305,7 @@ function initApp() {
      */
      async function checkFreighterConnection() {
         // ... (this function remains the same as before) ...
-         if (!freighterInstalled) {
+         if (typeof window.freighterApi === 'undefined' || !window.freighterApi.isConnected) {
             showScreen("login");
             updateDialogue("Freighter is not installed.", "loginDialogue");
             return;
@@ -313,11 +313,11 @@ function initApp() {
 
         showLoading("Checking connection...");
         try {
-            const isConnected = await freighterApi.isConnected();
+            const isConnected = await window.freighterApi.isConnected();
             const storedKey = localStorage.getItem(LOCALSTORAGE_KEY);
 
             if (isConnected && storedKey) {
-                 const currentKey = await freighterApi.getPublicKey();
+                 const currentKey = await window.freighterApi.getPublicKey();
                  if (currentKey === storedKey) {
                     playerPublicKey = currentKey;
                     updateDialogue(`✓ Resumed session for ${playerPublicKey.substring(0, 8)}...`, 'dialogue');
@@ -350,12 +350,12 @@ function initApp() {
      */
      async function signWithFreighter(transactionXDR) {
         // ... (this function remains the same as before) ...
-         if (!playerPublicKey || !freighterInstalled) {
+         if (!playerPublicKey || typeof window.freighterApi === 'undefined' || !window.freighterApi.isConnected) {
              updateDialogue("Not connected. Please connect Freighter.", "dialogue");
              return null;
          }
          try {
-            const signedXDR = await freighterApi.signTransaction(transactionXDR, {
+            const signedXDR = await window.freighterApi.signTransaction(transactionXDR, {
                 network: NETWORK_PASSPHRASE === StellarSdk.Networks.PUBLIC ? 'PUBLIC' : 'TESTNET'
             });
              return signedXDR;
@@ -587,136 +587,4 @@ function initApp() {
                  for (let i = 0; i < reels; i++) {
                      const stopTime = (spinDuration * 0.5) + (i * spinDuration * 0.5 / reels);
                      if (elapsedTime < stopTime) { reelElements[i].textContent = symbols[Math.floor(Math.random() * symbols.length)]; allStopped = false; }
-                     else { reelElements[i].textContent = finalResult[i]; }
-                 }
-                 if (allStopped || elapsedTime >= spinDuration + 500) {
-                     clearInterval(spinInterval);
-                     for (let i = 0; i < reels; i++) { reelElements[i].textContent = finalResult[i]; }
-                     resolve();
-                 }
-             }, intervalTime);
-         });
-     }
-     async function buyMonte(cost, numCards) {
-        if (activeGame.id) { updateDialogue("Please wait for the current game to finish.", "monteDialogue"); return; }
-        if (!playerPublicKey) { updateDialogue("Please connect your wallet first.", "monteDialogue"); return; }
-        if (playerBalance < cost) { updateDialogue(`✗ Need ${cost} KALE, you have ${playerBalance.toFixed(2)}!`, "monteDialogue"); return; }
-        showLoading("Initializing Monte Game...");
-        updateDialogue("Setting up the cards...", "monteDialogue");
-        try {
-             activeGame = { id: `temp-${Date.now()}`, cost: cost, type: "Monte" };
-             const initResponse = await fetch(`${BANK_API_URL}/init_monte_game`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cost: cost }), });
-             if (!initResponse.ok) { let errorJson; try { errorJson = await initResponse.json(); } catch(e){} throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`); }
-             const gameData = await initResponse.json();
-             const gameId = gameData.gameId;
-             const actualNumCards = gameData.numCards;
-             activeGame.id = gameId;
-             const memo = `Monte ${gameId.slice(-6)}`;
-             const paymentSuccess = await deductKale(cost, memo, "monteDialogue");
-             if (paymentSuccess) {
-                 renderMonte(gameId, cost, actualNumCards);
-             } else {
-                 activeGame = { id: null, cost: 0, type: null };
-             }
-        } catch (error) {
-            console.error("Error buying Monte game:", error);
-            updateDialogue(`✗ Error starting Monte game: ${error.message}`, "monteDialogue");
-            fetchBalance();
-            activeGame = { id: null, cost: 0, type: null };
-        } finally { hideLoading(); }
-    }
-     function renderMonte(gameId, cost, numCards) {
-         const monteGame = document.getElementById("monteGame");
-         const dialogueId = "monteDialogue";
-         monteGame.innerHTML = ""; monteGame.classList.remove("hidden");
-         monteGame.className = `game grid-${numCards === 5 ? 5 : numCards === 4 ? 4 : 3}`;
-         monteGame.classList.remove('revealed');
-         monteGame.style.pointerEvents = 'auto';
-         updateDialogue(`Find the Kale 🥬! Click a card to make your choice.`, dialogueId);
-         for (let i = 0; i < numCards; i++) {
-             const card = document.createElement("div");
-             card.classList.add("monte-card");
-             card.textContent = "❓";
-             card.dataset.index = i;
-             card.style.pointerEvents = 'auto';
-             card.onclick = async () => {
-                 if (!activeGame.id || activeGame.id !== gameId || monteGame.classList.contains('revealed')) { return; }
-                 const chosenIndex = i + 1;
-                 const chosenCardElement = card;
-                 updateDialogue(`You chose card ${chosenIndex}. Checking result...`, dialogueId);
-                 monteGame.classList.add('revealed');
-                 monteGame.querySelectorAll('.monte-card').forEach(c => c.style.pointerEvents = 'none');
-                 const signature = await fetchSignature(gameId, cost);
-                 let payoutData = null;
-                 if (signature && activeGame.id === gameId) {
-                     payoutData = await requestPayout(gameId, cost, signature, "Monte", [chosenIndex]);
-                 } else if (!signature) {
-                     updateDialogue("✗ Failed to secure game for payout.", dialogueId);
-                     activeGame = { id: null, cost: 0, type: null };
-                 }
-                 setTimeout(() => {
-                    const allCardElements = monteGame.querySelectorAll('.monte-card');
-                    if (payoutData && payoutData.status === 'success' && payoutData.finalLayout) {
-                         const finalLayout = payoutData.finalLayout;
-                         allCardElements.forEach((c, index) => {
-                             c.textContent = finalLayout[index] || '!';
-                             c.classList.add('revealed');
-                             if (finalLayout[index] === '🥬') { c.classList.add('kale-card'); }
-                         });
-                     } else {
-                         allCardElements.forEach(c => { c.textContent = "!"; c.classList.add('revealed'); });
-                     }
-                     if (chosenCardElement) { chosenCardElement.style.border = '3px solid blue'; }
-                     setTimeout(() => { monteGame.classList.add("hidden"); }, 5000);
-                 }, 500);
-             };
-             monteGame.appendChild(card);
-         }
-     }
-
-
-    // --- Utility & Navigation (Modified for Freighter) ---
-
-    // *** login() is now connectFreighter() triggered by button ***
-
-    // *** logout() clears Freighter state ***
-    function logout() {
-        playerPublicKey = null;
-        playerBalance = 0;
-        updateBalanceDisplay();
-        try { localStorage.removeItem(LOCALSTORAGE_KEY); } catch(e) { console.warn("LocalStorage not available", e); }
-        updateDialogue(`✓ Disconnected. Thanks for playing!`, "loginDialogue"); // Show message on login screen
-        showScreen("splash"); setTimeout(() => showScreen("login"), 1500);
-    }
-
-    function backToMenu() { showScreen("menu"); }
-    function showScratchOffs() { showScreen("scratch"); }
-    function showSlots() { showScreen("slots"); }
-    function showMonte() { showScreen("monte"); }
-    function showDonation() { showScreen("donation"); }
-
-    // --- Initialization ---
-
-    // Add event listener for the connect button
-    const connectBtn = document.getElementById('connectFreighterBtn');
-    if (connectBtn) {
-        connectBtn.onclick = connectFreighter; // Assign function directly
-    } else {
-        console.error("Connect Freighter button not found! Make sure index.html has the button with id='connectFreighterBtn'.");
-    }
-
-    // Try to resume session on load
-    checkFreighterConnection(); // This will show login or menu screen
-
-    // Expose functions needed by HTML onclick attributes
-    window.logout = logout; window.backToMenu = backToMenu;
-    window.buyScratchCard = buyScratchCard; window.buySlots = buySlots; window.buyMonte = buyMonte;
-    window.showScratchOffs = showScratchOffs; window.showSlots = showSlots; window.showMonte = showMonte;
-    window.showDonation = showDonation;
-}
-
-// Ensure the script runs after the DOM is loaded
-if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
-
-// Make sure freighterApi functions are accessible (might need adjustment based on how you include the library)
-const freighterApi = window.freighterApi;
+                     else { r
