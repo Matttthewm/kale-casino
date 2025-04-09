@@ -1,5 +1,5 @@
 <h2 class="emoji">🎲🥬 Kale Casino</h2>
-<p>Welcome to the all-new Kale Casino Web Games Suite! Experience your favorite Kale Casino games directly in your browser at <a href="http://kalecasino.xyz">http://kalecasino.xyz</a>. No more Python scripts or secret keys – just pure gaming fun at your fingertips!</p>
+<p>Welcome to the all-new Kale Casino Web Games Suite! Experience your favorite Kale Casino games directly in your browser at <a href="http://kalecasino.xyz">http://kalecasino.xyz</a>.</p>
 
 <h2 class="emoji">🚀 Getting Started</h2>
 <p>Simply visit <a href="http://kalecasino.xyz">http://kalecasino.xyz</a> in your web browser. Ensure you have a compatible browser (latest versions of Chrome, Firefox, Safari, or Edge are recommended) and a stable internet connection. You will need a Stellar account with KALE tokens and have followed the KALE trustline to play.</p>
