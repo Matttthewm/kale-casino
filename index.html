@@ -6,6 +6,7 @@
     <title>🥬 Kale Casino 👩‍🌾</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/13.1.0/stellar-sdk.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/freighter-api/1.4.0/index.min.js"></script>
 </head>
 <body class="bg-splash">
     <div id="app" class="container">
@@ -18,10 +19,15 @@
             <h1>🥬🥬🥬 Welcome to Kale Casino! 🥬🥬🥬</h1>
             <h2>🎰 Scratch! Spin! Win! 🎰</h2>
         </div>
+
         <div id="login" class="screen hidden">
-            <h1>👩‍🌾 Enter Your Stellar Secret Key 👩‍🌾</h1>
-            <input type="text" id="secretKey" placeholder="Enter secret key">
-            <button onclick="login()">Login</button>
+            <h1>👩‍🌾 Connect Your Wallet 👩‍🌾</h1>
+            <p>Please connect using Freighter to play.</p>
+            <button id="connectFreighterBtn">Connect Freighter</button>
+             <div id="loginDialogue" class="dialogue" style="margin-top: 15px;"></div>
+             <p style="font-size: 0.8em; margin-top: 20px;">
+                Don't have Freighter? <a href="https://www.freighter.app/" target="_blank" rel="noopener noreferrer">Get it here</a>.
+            </p>
         </div>
         <div id="menu" class="screen hidden">
             <h2>🎲 Kale Casino Games 🎲</h2>
@@ -30,9 +36,7 @@
             <button onclick="showMonte()">3. Monte</button>
             <button class="coming-soon" disabled>4. Lottery (Coming Soon)</button>
             <button onclick="showDonation()">5. Donation</button>
-            <button onclick="logout()">6. Exit</button>
-            <div id="dialogue" class="dialogue"></div>
-        </div>
+            <button onclick="logout()">6. Exit / Disconnect</button> <div id="dialogue" class="dialogue"></div> </div>
         <div id="scratch" class="screen hidden">
             <h1>🥬 Kale Casino Scratch-Off 🥬</h1>
             <button onclick="buyScratchCard(10)">1. 10 KALE - Tiny Plot (3 spots)</button>
@@ -53,41 +57,38 @@
         </div>
         <div id="monte" class="screen hidden">
             <h1>🥬 Kale Casino Three Card Monte 🥬</h1>
-            <button onclick="buyMonte(10, 3, 5)">1. 10 KALE - 3 Cards</button>
-            <button onclick="buyMonte(100, 4, 10)">2. 100 KALE - 4 Cards</button>
-            <button onclick="buyMonte(1000, 5, 15)">3. 1000 KALE - 5 Cards</button>
-            <button onclick="backToMenu()">4. Back to Menu</button>
+            <button onclick="buyMonte(10, 3)">1. 10 KALE - 3 Cards</button> <button onclick="buyMonte(100, 4)">2. 100 KALE - 4 Cards</button> <button onclick="buyMonte(1000, 5)">3. 1000 KALE - 5 Cards</button> <button onclick="backToMenu()">4. Back to Menu</button>
             <div id="monteGame" class="game hidden"></div>
             <div id="monteDialogue" class="dialogue"></div>
         </div>
-        <div id="donation" class="screen hidden">
-            <h1>💖 Support Kale Casino! 💖</h1>
-            <p>
-                <button onclick="window.open('https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION', '_blank')" style="font-size: 1.2em; padding: 10px 20px; cursor: pointer;">
-                    Donate here for a Kale Casino Donation nft!
-                </button>
-            </p>
-            <p>
-                <a href="https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION" target="_blank">
-                    <img src="https://i.imgur.com/SqofyMR.gif" alt="Kale Casino Donation NFT" style="width: 80%; max-width: 600px;">
-                </a>
-            </p>
-            <p>
-                All proceeds from NFT sale donations will be added back to
-                <button onclick="window.open('https://stellar.expert/explorer/public/account/GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
-                    the Kale Casino bank
-                </button>
-            </p>
-            <p>
-                The Kale Casino is a fun experimental project by
-                <button onclick="window.open('http://github.com/Matttthewm/', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
-                    @Matttthewm
-                </button>.
-                Please note this games suite is experimental and I am not responsible for any loss of funds.
-            </p>
-            <button onclick="backToMenu()">Back to Menu</button>
-            <div id="donationDialogue" class="dialogue"></div>
-        </div>
+         <div id="donation" class="screen hidden">
+             <h1>💖 Support Kale Casino! 💖</h1>
+             <p>
+                 <button onclick="window.open('https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION', '_blank')" style="font-size: 1.2em; padding: 10px 20px; cursor: pointer;">
+                     Donate here for a Kale Casino Donation nft!
+                 </button>
+             </p>
+             <p>
+                 <a href="https://litemint.com/items/GB3YU7AS52C5I7AJOZGQXI3M75YYANKAZXNYYN2A25TSDFYVG74W4A2A/KCDONATION" target="_blank">
+                     <img src="https://i.imgur.com/SqofyMR.gif" alt="Kale Casino Donation NFT" style="width: 80%; max-width: 600px;">
+                 </a>
+             </p>
+             <p>
+                 All proceeds from NFT sale donations will be added back to
+                 <button onclick="window.open('https://stellar.expert/explorer/public/account/GC5FWTU5MP4HUOFWCQGFHTPFERFFNBL2QOKMJJQINLAV2G4QVQ6PFDL7', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
+                     the Kale Casino bank
+                 </button>.
+             </p>
+             <p>
+                 The Kale Casino is a fun experimental project by
+                 <button onclick="window.open('http://github.com/Matttthewm/', '_blank')" style="font-size: 1em; padding: 5px 10px; cursor: pointer;">
+                     @Matttthewm
+                 </button>.
+                 Please note this games suite is experimental and I am not responsible for any loss of funds. Play responsibly!
+             </p>
+             <button onclick="backToMenu()">Back to Menu</button>
+             <div id="donationDialogue" class="dialogue"></div>
+         </div>
     </div>
     <script src="app.js"></script>
 </body>
