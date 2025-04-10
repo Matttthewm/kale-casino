@@ -586,5 +586,138 @@ function initApp() {
                  const elapsedTime = Date.now() - startTime; let allStopped = true;
                  for (let i = 0; i < reels; i++) {
                      const stopTime = (spinDuration * 0.5) + (i * spinDuration * 0.5 / reels);
-                     if (elapsedTime < stopTime) { reelElements[i].textContent = symbols[Math.floor(Math.random() * symbols.length)]; allStopped = false; }
-                     else { r
+                     if (elapsedTime < stopTime) {
+                         reelElements[i].textContent = symbols[Math.floor(Math.random() * symbols.length)];
+                         allStopped = false;
+                     } else {
+                         reelElements[i].textContent = finalResult[i];
+                     }
+                 }
+                 if (allStopped) {
+                     clearInterval(spinInterval);
+                     resolve();
+                 }
+             }, intervalTime);
+         });
+     }
+     async function buyMonte(cost, cards) {
+        if (activeGame.id) { updateDialogue("Please wait for the current game to finish.", "monteDialogue"); return; }
+        if (!playerPublicKey) { updateDialogue("Please connect your wallet first.", "monteDialogue"); return; }
+        if (playerBalance < cost) { updateDialogue(`✗ Need ${cost} KALE, you have ${playerBalance.toFixed(2)}!`, "monteDialogue"); return; }
+        showLoading("Preparing Monte Game...");
+        updateDialogue(`Shuffling ${cards} cards...`, "monteDialogue");
+        try {
+            activeGame = { id: `temp-${Date.now()}`, cost: cost, type: "Monte" };
+            const initResponse = await fetch(`${BANK_API_URL}/init_monte_game`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cost: cost }), });
+            if (!initResponse.ok) { let errorJson; try { errorJson = await initResponse.json(); } catch(e){} throw new Error(errorJson?.error || `HTTP error ${initResponse.status}`); }
+            const gameData = await initResponse.json();
+            const gameId = gameData.gameId; const numCards = gameData.numCards;
+            activeGame.id = gameId;
+            const memo = `Monte ${numCards}-${gameId.slice(-6)}`;
+            const paymentSuccess = await deductKale(cost, memo, "monteDialogue");
+            if (paymentSuccess) {
+                 renderMonte(gameId, numCards);
+            } else {
+                activeGame = { id: null, cost: 0, type: null };
+            }
+         } catch (error) {
+             console.error("Error buying Monte game:", error);
+             updateDialogue(`✗ Error starting Monte game: ${error.message}`, "monteDialogue");
+             fetchBalance();
+             activeGame = { id: null, cost: 0, type: null };
+         } finally { hideLoading(); }
+     }
+     async function renderMonte(gameId, numCards) {
+         const monteGame = document.getElementById("monteGame");
+         const dialogueId = "monteDialogue";
+         monteGame.innerHTML = ""; monteGame.classList.remove("hidden");
+         monteGame.className = `game grid-${numCards}`;
+         monteGame.style.pointerEvents = 'auto';
+         updateDialogue("Find the 🥬! Click a card to guess.", dialogueId);
+         const cards = Array.from({ length: numCards }, (_, i) => i + 1);
+         cards.forEach(cardNumber => {
+             const card = document.createElement("div");
+             card.classList.add("monte-card"); card.textContent = "?"; card.dataset.position = cardNumber;
+             card.onclick = async () => {
+                 if (!activeGame.id || activeGame.id !== gameId || card.classList.contains("revealed")) return;
+                 card.textContent = "🤔"; card.style.pointerEvents = 'none';
+                 updateDialogue(`You guessed card ${cardNumber}. Checking...`, dialogueId);
+                 const signature = await fetchSignature(gameId, activeGame.cost);
+                 if (signature && activeGame.id === gameId) {
+                     const payoutData = await requestPayout(gameId, activeGame.cost, signature, "Monte", [cardNumber]);
+                     if (payoutData && payoutData.finalLayout) {
+                         const finalLayout = payoutData.finalLayout;
+                         monteGame.innerHTML = ""; // Clear ? cards
+                         finalLayout.forEach((symbol, index) => {
+                             const revealedCard = document.createElement("div");
+                             revealedCard.classList.add("monte-card", "revealed");
+                             revealedCard.textContent = symbol;
+                             if (symbol === "🥬") revealedCard.classList.add("kale-card");
+                             monteGame.appendChild(revealedCard);
+                         });
+                     } else {
+                         updateDialogue("✗ Error revealing results.", dialogueId);
+                         activeGame = { id: null, cost: 0, type: null };
+                     }
+                 } else if (!signature) {
+                     updateDialogue("✗ Failed to secure game for payout.", dialogueId);
+                     activeGame = { id: null, cost: 0, type: null };
+                 }
+                 setTimeout(() => { monteGame.classList.add("hidden"); }, 5000);
+             };
+             monteGame.appendChild(card);
+         });
+     }
+
+    // --- Navigation ---
+    function showSplash() { showScreen("splash"); }
+    function showLogin() { showScreen("login"); }
+    function showMenu() { showScreen("menu"); }
+    function showScratchOffs() { showScreen("scratch"); }
+    function showSlots() { showScreen("slots"); }
+    function showMonte() { showScreen("monte"); }
+    function showDonation() { showScreen("donation"); }
+    function backToMenu() { showScreen("menu"); }
+    function logout() {
+        playerPublicKey = null; playerBalance = 0; localStorage.removeItem(LOCALSTORAGE_KEY);
+        updateBalanceDisplay(); showScreen("login"); updateDialogue("Disconnected.", "loginDialogue");
+    }
+
+    // --- Event Listeners ---
+    document.getElementById("connectFreighterBtn").addEventListener("click", connectFreighter);
+
+    // --- Initialization ---
+    showSplash();
+    setTimeout(showLogin, 1500);
+    checkFreighterConnection();
+
+    // --- Debugging ---
+    window.debugLogout = logout; // Expose logout for testing
+    window.debugAddKale = async (amount) => { // Temporary function for testing
+        if (!playerPublicKey) { console.error("Not connected."); return; }
+        showLoading(`Adding ${amount} KALE (DEBUG)...`);
+        try {
+            const response = await fetch(`${BANK_API_URL}/debug/add_kale`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ public_key: playerPublicKey, amount: amount })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Debug Add KALE Response:", data);
+                await fetchBalance();
+                updateDialogue(`✓ Added ${amount} KALE (DEBUG).`, 'dialogue');
+            } else {
+                const errorData = await response.json();
+                console.error("Debug Add KALE Error:", errorData);
+                updateDialogue(`✗ Error adding KALE (DEBUG): ${errorData.error || response.statusText}`, 'dialogue');
+            }
+        } catch (error) {
+            console.error("Debug Add KALE Network Error:", error);
+            updateDialogue(`✗ Network error adding KALE (DEBUG).`, 'dialogue');
+        } finally { hideLoading(); }
+    };
+
+}
+
+// Initialize the app when the script loads
+document.addEventListener('DOMContentLoaded', initApp);
