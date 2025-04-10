@@ -59,7 +59,7 @@ async function connectFreighter() {
     // Debug: Inspect window.freighterApi
     console.log("window.freighterApi:", window.freighterApi);
     console.log("window.freighterApi type:", typeof window.freighterApi);
-    console.log("window.freighterApi methods:", Object.keys(window.freighterApi));
+    console.log("window.freighterApi methods:", Object.keys(window.freighterApi || {}));
 
     if (!window.freighterApi) {
         console.log("Freighter API not available.");
@@ -68,34 +68,41 @@ async function connectFreighter() {
         return;
     }
 
-    // Check if isConnected is callable
-    if (typeof window.freighterApi.isConnected !== 'function') {
+    const freighterApi = window.freighterApi;
+
+    // Check if the API has the expected methods
+    const availableMethods = Object.keys(freighterApi);
+    console.log("Available Freighter API methods:", availableMethods);
+
+    // Verify isConnected
+    if (typeof freighterApi.isConnected !== 'function') {
         console.error("isConnected is not a function on window.freighterApi.");
         updateDialogue('loginDialogue', "Freighter API issue: isConnected not found.");
         hideLoading();
         return;
     }
 
-    if (!await window.freighterApi.isConnected()) {
-        console.log("Freighter not connected.");
-        updateDialogue('loginDialogue', "Freighter extension not connected. Please enable it.");
-        hideLoading();
-        return;
-    }
-
-    console.log("Freighter detected. Requesting public key...");
-    updateDialogue('loginDialogue', "Freighter detected. Requesting public key...");
-
-    // Check if getPublicKey is callable
-    if (typeof window.freighterApi.getPublicKey !== 'function') {
-        console.error("getPublicKey is not a function on window.freighterApi.");
-        updateDialogue('loginDialogue', "Freighter API issue: getPublicKey not found.");
-        hideLoading();
-        return;
-    }
-
     try {
-        const publicKey = await window.freighterApi.getPublicKey();
+        const connected = await freighterApi.isConnected();
+        if (!connected) {
+            console.log("Freighter not connected.");
+            updateDialogue('loginDialogue', "Freighter extension not connected. Please enable it.");
+            hideLoading();
+            return;
+        }
+
+        console.log("Freighter Detected! Requesting public key...");
+        updateDialogue('loginDialogue', "Freighter detected. Requesting public key...");
+
+        // Verify getPublicKey
+        if (typeof freighterApi.getPublicKey !== 'function') {
+            console.error("getPublicKey is not a function on window.freighterApi.");
+            updateDialogue('loginDialogue', "Freighter API issue: getPublicKey not found.");
+            hideLoading();
+            return;
+        }
+
+        const publicKey = await freighterApi.getPublicKey();
         console.log('Public Key:', publicKey);
         localStorage.setItem('publicKey', publicKey);
         updateDialogue('loginDialogue', `Connected with public key: ${publicKey.substring(0, 8)}...`);
