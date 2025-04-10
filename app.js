@@ -13,7 +13,10 @@ function showScreen(screenId, message = '', dialogueId = screenId === 'menu' ? '
         screenToShow.classList.remove('hidden');
     }
 
-    updateDialogue(dialogueId, message);
+    // Only update dialogue if message is provided and dialogueId exists
+    if (message && document.getElementById(dialogueId)) {
+        updateDialogue(dialogueId, message);
+    }
 }
 
 function updateDialogue(dialogueId, message) {
@@ -35,7 +38,7 @@ function hideLoading() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    showScreen('splash');
+    showScreen('splash'); // No message, so no dialogue update attempted
 
     const connectFreighterBtn = document.getElementById('connectFreighterBtn');
     if (connectFreighterBtn) {
@@ -44,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Connect Freighter button not found.");
     }
 
-    // Show login screen after a delay
     setTimeout(() => {
         showScreen('login');
     }, 1500);
@@ -54,18 +56,43 @@ async function connectFreighter() {
     console.log("Connect Freighter button clicked! Attempting to run function...");
     showLoading("Connecting to Freighter...");
 
-    // Debug: Log the Freighter API object
+    // Debug: Inspect window.freighterApi
     console.log("window.freighterApi:", window.freighterApi);
+    console.log("window.freighterApi type:", typeof window.freighterApi);
+    console.log("window.freighterApi methods:", Object.keys(window.freighterApi));
 
-    if (!window.freighterApi || !await window.freighterApi.isConnected()) {
-        console.log("Freighter not installed or not connected.");
-        updateDialogue('loginDialogue', "Freighter extension not found or not connected. Please install and enable it.");
+    if (!window.freighterApi) {
+        console.log("Freighter API not available.");
+        updateDialogue('loginDialogue', "Freighter extension not detected. Please install it.");
         hideLoading();
         return;
     }
 
-    console.log("Freighter detected. Available methods:", Object.keys(window.freighterApi));
+    // Check if isConnected is callable
+    if (typeof window.freighterApi.isConnected !== 'function') {
+        console.error("isConnected is not a function on window.freighterApi.");
+        updateDialogue('loginDialogue', "Freighter API issue: isConnected not found.");
+        hideLoading();
+        return;
+    }
+
+    if (!await window.freighterApi.isConnected()) {
+        console.log("Freighter not connected.");
+        updateDialogue('loginDialogue', "Freighter extension not connected. Please enable it.");
+        hideLoading();
+        return;
+    }
+
+    console.log("Freighter detected. Requesting public key...");
     updateDialogue('loginDialogue', "Freighter detected. Requesting public key...");
+
+    // Check if getPublicKey is callable
+    if (typeof window.freighterApi.getPublicKey !== 'function') {
+        console.error("getPublicKey is not a function on window.freighterApi.");
+        updateDialogue('loginDialogue', "Freighter API issue: getPublicKey not found.");
+        hideLoading();
+        return;
+    }
 
     try {
         const publicKey = await window.freighterApi.getPublicKey();
@@ -87,7 +114,6 @@ async function fetchBalance(publicKey) {
     console.log("Fetching balance for:", publicKey);
     balanceSpan.textContent = "Loading...";
     balanceBar.classList.remove('hidden');
-    // Simulate an API call (replace with real Stellar API call)
     setTimeout(() => {
         balanceSpan.textContent = Math.floor(Math.random() * 1000); // Dummy balance
     }, 1000);
