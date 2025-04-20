@@ -74,7 +74,7 @@ async function connectFreighter() {
     const availableMethods = Object.keys(freighterApi);
     console.log("Available Freighter API methods:", availableMethods);
 
-    // Verify isConnected
+    // Verify isConnected (This check is okay as is)
     if (typeof freighterApi.isConnected !== 'function') {
         console.error("isConnected is not a function on window.freighterApi.");
         updateDialogue('loginDialogue', "Freighter API issue: isConnected not found.");
@@ -86,7 +86,7 @@ async function connectFreighter() {
         const connected = await freighterApi.isConnected();
         if (!connected) {
             console.log("Freighter not connected.");
-            updateDialogue('loginDialogue', "Freighter extension not connected. Please enable it.");
+            updateDialogue('loginDialogue', "Freighter extension not connected. Please enable it and try again.");
             hideLoading();
             return;
         }
@@ -94,24 +94,48 @@ async function connectFreighter() {
         console.log("Freighter Detected! Requesting public key...");
         updateDialogue('loginDialogue', "Freighter detected. Requesting public key...");
 
-        // Verify getPublicKey
+        // --- FIX START: Handle getAddress returning an object ---
+        // Verify getAddress exists (based on previous debugging, it should)
         if (typeof freighterApi.getAddress !== 'function') {
-            console.error("getPublicKey is not a function on window.freighterApi.");
-            updateDialogue('loginDialogue', "Freighter API issue: getPublicKey not found.");
+            console.error("getAddress is not a function on window.freighterApi.");
+             updateDialogue('loginDialogue', "Freighter API issue: getAddress not found. Please ensure Freighter is properly installed and enabled.");
             hideLoading();
             return;
         }
 
-        const publicKey = await freighterApi.getAddress();
-        console.log('Public Key:', publicKey);
+        // Call getAddress which returns an object containing the public key string
+        const publicKeyObject = await freighterApi.getAddress();
+
+        // Extract the public key string from the returned object
+        // Based on standard Freighter API, it's likely under the 'publicKey' property
+        if (!publicKeyObject || typeof publicKeyObject.publicKey !== 'string') {
+             console.error("getAddress returned an unexpected format:", publicKeyObject);
+             updateDialogue('loginDialogue', "Freighter API issue: Failed to retrieve public key string.");
+             hideLoading();
+             return;
+        }
+        const publicKey = publicKeyObject.publicKey; // This is the public key string!
+        // --- FIX END ---
+
+
+        console.log('Public Key:', publicKey); // This should now log 'Public Key: G...'
+
         localStorage.setItem('publicKey', publicKey);
-        updateDialogue('loginDialogue', `Connected with public key: ${publicKey.substring(0, 8)}...`);
-        fetchBalance(publicKey);
-        showScreen('menu');
+        updateDialogue('loginDialogue', `Connected with public key: ${publicKey.substring(0, 8)}...`); // This should now work
+        fetchBalance(publicKey); // Pass the string public key
+        showScreen('menu'); // Assuming connection is successful, show the menu
         hideLoading();
+
     } catch (error) {
         console.error('Freighter connection error:', error);
-        updateDialogue('loginDialogue', `Error connecting to Freighter: ${error.message}`);
+        // Provide more specific error message if possible
+        let userErrorMessage = "Error connecting to Freighter.";
+         if (error.message && error.message.includes('User declined')) {
+             userErrorMessage = "Connection request declined in Freighter. Please approve.";
+         } else if (error.message) {
+              userErrorMessage += ` Details: ${error.message}`;
+         }
+        updateDialogue('loginDialogue', userErrorMessage);
         hideLoading();
     }
 }
@@ -121,6 +145,8 @@ async function fetchBalance(publicKey) {
     console.log("Fetching balance for:", publicKey);
     balanceSpan.textContent = "Loading...";
     balanceBar.classList.remove('hidden');
+    // TODO: Replace with actual Stellar SDK logic to fetch KALECHIPS balance
+    // Use the publicKey and the KALECHIPS asset details (code and issuer)
     setTimeout(() => {
         balanceSpan.textContent = Math.floor(Math.random() * 1000); // Dummy balance
     }, 1000);
@@ -163,14 +189,23 @@ function logout() {
 function buyScratchCard(price) {
     console.log(`Buy Scratch Card for ${price} KALE`);
     updateDialogue('scratchDialogue', `Attempting to buy scratch card for ${price} KALE...`);
+    // TODO: Implement game logic including Freighter transaction signing
 }
 
 function buySlots(price, reels) {
     console.log(`Buy Slots for ${price} KALE with ${reels} reels`);
     updateDialogue('slotsDialogue', `Attempting to play slots for ${price} KALE with ${reels} reels...`);
+    // TODO: Implement game logic including Freighter transaction signing
 }
 
 function buyMonte(price, cards) {
     console.log(`Buy Monte for ${price} KALE with ${cards} cards`);
     updateDialogue('monteDialogue', `Attempting to play Monte for ${price} KALE with ${cards} cards...`);
+     // TODO: Implement game logic including Freighter transaction signing
 }
+
+// TODO: Add implementation for other game logic functions (revealing scratch spots, playing Monte, handling game results and payout requests)
+// TODO: Implement KALECHIPS "Bake" feature (KALE -> KALECHIPS swap)
+// TODO: Implement KALECHIPS Tokenomics (Burning, Buyback, Utility)
+// TODO: Implement Kale Salad Lottery Game
+// TODO: Update UI rendering to use pixel art aesthetic
