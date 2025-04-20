@@ -70,58 +70,57 @@ async function connectFreighter() {
 
     const freighterApi = window.freighterApi;
 
-    // Check if the API has the expected methods
+    // Check if the API has the expected methods (Optional, but good practice)
     const availableMethods = Object.keys(freighterApi);
     console.log("Available Freighter API methods:", availableMethods);
 
-    // Verify isConnected (This check is okay as is)
-    if (typeof freighterApi.isConnected !== 'function') {
-        console.error("isConnected is not a function on window.freighterApi.");
-        updateDialogue('loginDialogue', "Freighter API issue: isConnected not found.");
-        hideLoading();
-        return;
+    // Verify requestAccess and getAddress exist (Based on your logs, they should)
+    if (typeof freighterApi.requestAccess !== 'function' || typeof freighterApi.getAddress !== 'function') {
+         console.error("Freighter API methods requestAccess or getAddress not found.");
+         updateDialogue('loginDialogue', "Freighter API issue: Required methods not found. Ensure Freighter is up to date.");
+         hideLoading();
+         return;
     }
 
+
     try {
-        const connected = await freighterApi.isConnected();
-        if (!connected) {
-            console.log("Freighter not connected.");
-            updateDialogue('loginDialogue', "Freighter extension not connected. Please enable it and try again.");
-            hideLoading();
-            return;
-        }
+        // --- FIX START: Add requestAccess and correctly handle getAddress return ---
 
-        console.log("Freighter Detected! Requesting public key...");
-        updateDialogue('loginDialogue', "Freighter detected. Requesting public key...");
+        console.log("Freighter Detected! Requesting access...");
+        updateDialogue('loginDialogue', "Freighter detected. Requesting access...");
 
-        // --- FIX START: Handle getAddress returning an object ---
-        // Verify getAddress exists (based on previous debugging, it should)
-        if (typeof freighterApi.getAddress !== 'function') {
-            console.error("getAddress is not a function on window.freighterApi.");
-             updateDialogue('loginDialogue', "Freighter API issue: getAddress not found. Please ensure Freighter is properly installed and enabled.");
-            hideLoading();
-            return;
-        }
+        // Request access from the user via Freighter prompt
+        // This promise resolves when user grants or denies access
+        await freighterApi.requestAccess();
 
-        // Call getAddress which returns an object containing the public key string
+        // If requestAccess resolves without error, it means access *might* be granted.
+        // Now, try to get the address.
+        console.log("Access requested. Attempting to get public key...");
+        updateDialogue('loginDialogue', "Access requested. Getting public key...");
+
+
+        // Call getAddress which should now return the address if access was granted and Freighter is ready
         const publicKeyObject = await freighterApi.getAddress();
 
         // Extract the public key string from the returned object
-        // Based on standard Freighter API, it's likely under the 'publicKey' property
-        if (!publicKeyObject || typeof publicKeyObject.publicKey !== 'string') {
-             console.error("getAddress returned an unexpected format:", publicKeyObject);
-             updateDialogue('loginDialogue', "Freighter API issue: Failed to retrieve public key string.");
+        // We now know the property name is 'address' and it should be a non-empty string if successful
+        if (!publicKeyObject || typeof publicKeyObject.address !== 'string' || publicKeyObject.address === "") {
+             console.error("getAddress returned an unexpected or empty format:", publicKeyObject);
+             // This error likely means user denied access OR Freighter isn't unlocked/setup
+             updateDialogue('loginDialogue', "Freighter connection failed. Please ensure Freighter is unlocked and you grant access.");
              hideLoading();
              return;
         }
-        const publicKey = publicKeyObject.publicKey; // This is the public key string!
+        const publicKey = publicKeyObject.address; // Correctly extract the address string!
         // --- FIX END ---
 
 
-        console.log('Public Key:', publicKey); // This should now log 'Public Key: G...'
+        console.log('Public Key:', publicKey); // This should now log the actual public key 'G...'
 
         localStorage.setItem('publicKey', publicKey);
-        updateDialogue('loginDialogue', `Connected with public key: ${publicKey.substring(0, 8)}...`); // This should now work
+        // Shorten public key for display
+        const shortPublicKey = `${publicKey.substring(0, 4)}...${publicKey.substring(publicKey.length - 4)}`;
+        updateDialogue('loginDialogue', `Connected: ${shortPublicKey}`); // Display shorter key
         fetchBalance(publicKey); // Pass the string public key
         showScreen('menu'); // Assuming connection is successful, show the menu
         hideLoading();
@@ -130,8 +129,8 @@ async function connectFreighter() {
         console.error('Freighter connection error:', error);
         // Provide more specific error message if possible
         let userErrorMessage = "Error connecting to Freighter.";
-         if (error.message && error.message.includes('User declined')) {
-             userErrorMessage = "Connection request declined in Freighter. Please approve.";
+         if (error.message && error.message.includes('User denied access')) { // Specific error for denial
+             userErrorMessage = "Freighter access denied. Please approve the connection request.";
          } else if (error.message) {
               userErrorMessage += ` Details: ${error.message}`;
          }
