@@ -102,7 +102,7 @@ async function connectFreighter() {
             return;
         }
 
-        const publicKey = await freighterApi.getPublicKey();
+        const publicKey = await freighterApi.getAddress();
         console.log('Public Key:', publicKey);
         localStorage.setItem('publicKey', publicKey);
         updateDialogue('loginDialogue', `Connected with public key: ${publicKey.substring(0, 8)}...`);
