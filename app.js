@@ -95,7 +95,7 @@ async function connectFreighter() {
         updateDialogue('loginDialogue', "Freighter detected. Requesting public key...");
 
         // Verify getPublicKey
-        if (typeof freighterApi.getPublicKey !== 'function') {
+        if (typeof freighterApi.getAddress !== 'function') {
             console.error("getPublicKey is not a function on window.freighterApi.");
             updateDialogue('loginDialogue', "Freighter API issue: getPublicKey not found.");
             hideLoading();
